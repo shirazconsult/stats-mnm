@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<configuration>
+
+	<appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+		<encoder>
+			<pattern>%d %p [%t]-%c{0} | %m%n</pattern>
+		</encoder>
+	</appender>
+
+	<appender name="RollingFileAppender"
+		class="ch.qos.logback.core.rolling.RollingFileAppender">
+		<file>monitor.log</file>
+		<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+			<fileNamePattern>aggregator.%d{yyyy-MM-dd}.log</fileNamePattern>
+			<timeBasedFileNamingAndTriggeringPolicy
+				class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+				<maxFileSize>100MB</maxFileSize>
+			</timeBasedFileNamingAndTriggeringPolicy>
+		</rollingPolicy>
+		<encoder>
+			<pattern>%d %p [%thread] %-5level %logger{16} - %msg%n - %msg%n
+			</pattern>
+		</encoder>
+	</appender>
+
+	<logger name="org.springframework" level="error" />
+	<logger name="org.apache.camel" level="error" />
+	<logger name="com.nordija.statistic" level="debug" />
+	<logger name="org.apache.camel" level="error" />
+	<logger name="org.glassfish.grizzly" level="debug" />
+	<logger name="org.glassfish.grizzly" level="debug" />
+	<logger name="com.sun.jersey" level="debug" />
+	<logger name="com.sun.xml" level="error" />
+	<logger name="com.thetransactioncompany.cors" level="debug"/>
+	
+	<root level="INFO">
+		<appender-ref ref="RollingFileAppender" />
+		<appender-ref ref="STDOUT" />
+	</root>
+
+</configuration>
