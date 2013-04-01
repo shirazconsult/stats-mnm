@@ -19,12 +19,7 @@ public class MonitorDaemon {
 		try {
             ClassPathXmlApplicationContext context = loadContext();
             
-            boolean success = startServices(context);
-            if(!success){
-            	logger.error("!!! One or more services did not start successfully !!!");
-            }
-            
-            logger.info("All services started successfully.");
+            startServices(context);
             
             daemonize(context);
         } catch (Exception e1) {
@@ -82,33 +77,72 @@ public class MonitorDaemon {
         return new File(pid);
     }
 
-    static public boolean startServices(ApplicationContext context){
-        Monitor brokerMonitor = context.getBean(BrokerMonitor.class);
-		logger.info("Testing connection to the aggregator monitor service.");
-		if(!brokerMonitor.testConnection()){
-			logger.error("ActiveMQ monitor cannot connect to the ActiveMQ broker service. Please check if the broker is running.");
-		}
-        brokerMonitor.start();
-        logger.info("Started all ActiveMQ monitor successfully.");
-        
-        com.nordija.statistic.monitoring.Monitor aggregatorMonitor = context.getBean(AggregatorMonitorImpl.class);
-		logger.info("Testing connection to the aggregator service.");		
-		if(!aggregatorMonitor.testConnection()){
-			logger.error("Aggregator monitor cannot connect to the aggregator service. Please check if the aggregator is running.");
-		}else{
-			aggregatorMonitor.start();
-			logger.info("Started Aggregator monitor successfully.");
-		}
-        
+    static public void startServices(final ApplicationContext context) throws Exception{
+    	Thread t1 = new Thread(){    		
+    		@Override
+    		public void run() {
+    			Monitor brokerMonitor = context.getBean(BrokerMonitor.class);
+    			while(true){
+    				logger.info("Testing connection to the ActiveMQ broker service.");
+    				if(!brokerMonitor.testConnection()){
+    					logger.error("ActiveMQ monitor cannot connect to the ActiveMQ broker service. Please check if the broker is running.");
+    				}else{
+    					brokerMonitor.start();
+    					logger.info("Started all ActiveMQ monitor successfully.");
+    					return;
+    				}
+    				try {
+    					currentThread().sleep(10000);
+    				} catch (InterruptedException e) {
+    					logger.warn("Monitor Agent Interrupted. Giving up to start the ActiveMQ monitor.");
+    					return;
+    				}
+    			}
+    		}
+    	};
+		    	
+    	Thread t2 = new Thread(){    		
+    		@Override
+    		public void run() {
+    			while(true){
+    				com.nordija.statistic.monitoring.Monitor aggregatorMonitor = context.getBean(AggregatorMonitorImpl.class);
+    				logger.info("Testing connection to the aggregator service.");		
+    				if(!aggregatorMonitor.testConnection()){
+    					logger.error("Aggregator monitor cannot connect to the aggregator service. Please check if the aggregator is running.");
+    				}else{
+        				try {
+        					// Wait a bit before starting the monitor agent. The rational behind the delay is to give time to the Aggregator to 
+        					// initialize it's jmx-agent and mbeans, in case the Aggregator has just been started. 
+        					Thread.sleep(2000);
+        				} catch (InterruptedException e) {
+        					logger.warn("Monitor Agent Interrupted. Giving up to start the Aggregator monitor.");
+        					return;
+        				}					
+    					aggregatorMonitor.start();
+    					logger.info("Started Aggregator monitor successfully.");
+    					return;
+    				}
+    				try {
+    					Thread.sleep(10000);
+    				} catch (InterruptedException e) {
+    					logger.warn("Monitor Agent Interrupted. Giving up to start the Aggregator monitor.");
+    					return;
+    				}					
+    			}
+    		}
+    	};
+
+    	t1.start();
+    	t2.start();
+    	
 		MonitorRestService restService = context.getBean(MonitorRestService.class); 
         try{
         	restService.start();
         }catch(Exception e){
         	logger.error("Failed to start Rest Service. Exiting...", e.getCause());
+        	throw e;
         }
-        logger.info("Started Rest Service successfully.");
-        
-        return restService.isRunning() && aggregatorMonitor.isRunning() && brokerMonitor.isRunning();
+        logger.info("Successfully started Rest Services.");
     }
     
     static public void shutdown(ApplicationContext context) {
@@ -157,5 +191,5 @@ public class MonitorDaemon {
             new ClassPathXmlApplicationContext(new String[] { "classpath*:META-INF/spring/applicationContext.xml" });
 
         return context;
-    }
+    }	
 }
