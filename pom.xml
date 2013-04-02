@@ -23,7 +23,7 @@
 		<module>stats-profiler</module>
 		<module>stats-distribution</module>
 		<module>stats-monitor</module>
-		<module>stats-mnm-rest</module>
+		<module>stats-mnm-agent</module>
 	</modules>
 
 	<dependencies>
