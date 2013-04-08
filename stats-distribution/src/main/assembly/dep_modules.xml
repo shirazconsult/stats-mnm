@@ -1,0 +1,29 @@
+<assembly
+	xmlns="http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.2"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/plugins/maven-assembly-plugin/assembly/1.1.2 http://maven.apache.org/xsd/assembly-1.1.2.xsd">
+	<id>modules</id>
+	<formats>
+		<format>tar.gz</format>
+	</formats>
+	<includeBaseDirectory>true</includeBaseDirectory>
+	<baseDirectory>statistics-${project.version}</baseDirectory>
+	<dependencySets>
+		<dependencySet>
+			<useProjectArtifact>false</useProjectArtifact>
+			<outputDirectory>modules</outputDirectory>
+			<unpack>false</unpack>
+			<includes>
+				<include>com.nordija.itv.addons.statistic:stats-common</include>
+				<include>com.nordija.itv.addons.statistic:stats-filepersister</include>
+				<include>com.nordija.itv.addons.statistic:stats-dbpersister</include>
+				<include>com.nordija.itv.addons.statistic:stats-mssqlpersister</include>
+				<include>com.nordija.itv.addons.statistic:stats-aggregator</include>
+				<include>com.nordija.itv.addons.statistic:stats-profiler</include>
+				<include>com.nordija.itv.addons.statistic:stats-monitor</include>
+				<include>com.nordija.itv.addons.statistic:stats-mnm-agent</include>
+				<include>com.nordija.activemq:nordija-amq-admin</include>
+			</includes>
+		</dependencySet>
+	</dependencySets>
+</assembly>

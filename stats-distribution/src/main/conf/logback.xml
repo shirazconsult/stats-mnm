@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<configuration scan="true" scanPeriod="30 seconds">
+
+	<appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+		<encoder>
+			<pattern>%d %p [%t]-%c{0} | %m%n</pattern>
+		</encoder>
+	</appender>
+
+	<appender name="AggregatorRollingFileAppender"
+		class="ch.qos.logback.core.rolling.RollingFileAppender">
+		<file>${STATISTICS_HOME}/log/aggregator.log</file>
+		<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+			<fileNamePattern>${STATISTICS_HOME}/log/aggregator.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+			<timeBasedFileNamingAndTriggeringPolicy
+				class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+				<maxFileSize>100MB</maxFileSize>
+			</timeBasedFileNamingAndTriggeringPolicy>
+			<maxHistory>10</maxHistory>
+		</rollingPolicy>
+		<encoder>
+			<pattern>%d %p [%thread] %-5level %logger{16} - %msg%n</pattern>
+		</encoder>
+	</appender>
+
+	<appender name="ProfilerRollingFileAppender"
+		class="ch.qos.logback.core.rolling.RollingFileAppender">
+		<file>${STATISTICS_HOME}/log/profiler.log</file>
+		<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+			<fileNamePattern>${STATISTICS_HOME}/log/profiler.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+			<timeBasedFileNamingAndTriggeringPolicy
+				class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+				<maxFileSize>100MB</maxFileSize>
+			</timeBasedFileNamingAndTriggeringPolicy>
+			<maxHistory>10</maxHistory>
+		</rollingPolicy>
+		<encoder>
+			<pattern>%d %p [%thread] %-5level %logger{16} - %msg%n</pattern>
+		</encoder>
+	</appender>
+
+	<!-- logging level for various third party frameworks -->
+	<logger name="org.springframework" level="error" />
+	<logger name="org.hibernate" level="error" />
+	<logger name="org.apache.activemq" level="error" />
+	<logger name="org.apache.camel" level="error" />
+
+	<!-- db-migration logging -->
+    <logger name="com.carbonfive.db.migration" level="info">
+		<appender-ref ref="STDOUT"/>
+	</logger>
+        <logger name="com.nordija.statistic.util.MigrationManager" level="info">
+		<appender-ref ref="STDOUT"/>
+	</logger>
+        
+	<!-- aggregator logging -->
+	<logger name="com.nordija.statistic" level="info" additivity="false">
+		<appender-ref ref="AggregatorRollingFileAppender"/>
+	</logger>
+
+	<!-- profiler & monitoring logging -->
+	<logger name="com.nordija.statistic.profiler" level="info" additivity="false">
+		<appender-ref ref="ProfilerRollingFileAppender"/>
+		<appender-ref ref="STDOUT"/>
+	</logger>
+	<logger name="com.nordija.statistic.monitoring" level="info" additivity="false">
+		<appender-ref ref="ProfilerRollingFileAppender"/>
+		<appender-ref ref="STDOUT"/>
+	</logger>
+	<logger name="com.nordija.activemq" level="info" additivity="false">
+		<appender-ref ref="ProfilerRollingFileAppender"/>
+		<appender-ref ref="STDOUT"/>
+	</logger>
+
+	<root level="INFO">
+		<appender-ref ref="STDOUT" />
+	</root>
+</configuration>

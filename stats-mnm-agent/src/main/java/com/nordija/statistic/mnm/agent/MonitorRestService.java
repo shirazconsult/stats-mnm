@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 public class MonitorRestService implements Lifecycle {
 	private final static Logger logger = LoggerFactory.getLogger(MonitorRestService.class);
 	
-	private final static String webappDirLocation = "src/main/webapp/";
+	private final static String webappDirLocation = "webapp";
 	
 	@Value("${rest.port}")
 	private int port;
@@ -32,11 +32,11 @@ public class MonitorRestService implements Lifecycle {
 		
 	    try {
 			server.start();
-			server.join();		
+			logger.info("Monitor Rest Service started at "+port);
+//			server.join();		
 		} catch (Exception e) {
 			throw new RuntimeException("Failed to start embedded web server.",e);
 		}
-	    logger.info("Monitor Rest Service started.");
 	}
 
 	@Override
@@ -69,8 +69,9 @@ public class MonitorRestService implements Lifecycle {
 		 
 	    appCtx.setContextPath("/");
 	    appCtx.setDescriptor(webappDirLocation + "/WEB-INF/web.xml");
-	    appCtx.setResourceBase(webappDirLocation);
-	 
+	    String resource = getClass().getClassLoader().getResource(webappDirLocation).toExternalForm();
+	    appCtx.setResourceBase(resource);
+	    
 	    appCtx.setParentLoaderPriority(true);
 	 
 	    server.setHandler(appCtx);

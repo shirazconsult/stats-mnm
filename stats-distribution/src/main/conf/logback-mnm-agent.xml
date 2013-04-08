@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<configuration scan="true" scanPeriod="30 seconds">
+
+	<appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+		<encoder>
+			<pattern>%d %p [%t]-%c{0} | %m%n</pattern>
+		</encoder>
+	</appender>
+
+	<appender name="MonitorAgentRollingFileAppender"
+		class="ch.qos.logback.core.rolling.RollingFileAppender">
+		<file>${STATISTICS_HOME}/log/mnm-agent.log</file>
+		<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+			<fileNamePattern>${STATISTICS_HOME}/log/mnm-agent.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+			<timeBasedFileNamingAndTriggeringPolicy
+				class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+				<maxFileSize>100MB</maxFileSize>
+			</timeBasedFileNamingAndTriggeringPolicy>
+			<maxHistory>10</maxHistory>
+		</rollingPolicy>
+		<encoder>
+			<pattern>%d %p [%thread] %-5level %logger{16} - %msg%n</pattern>
+		</encoder>
+	</appender>
+
+	<!-- logging level for various third party frameworks -->
+	<logger name="org.springframework" level="error" />
+	<logger name="org.hibernate" level="error" />
+	<logger name="org.apache.activemq" level="error" />
+	<logger name="org.apache.camel" level="error" />        
+	<logger name="com.sun.jersey" level="info"/>
+	
+	<logger name="com.nordija.statistic" level="info"/>
+
+	<root level="INFO">
+		<appender-ref ref="MonitorAgentRollingFileAppender" />
+	</root>
+</configuration>

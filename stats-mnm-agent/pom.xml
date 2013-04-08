@@ -74,17 +74,6 @@
 			</exclusions>
 		</dependency>
 
-
-		<!-- <dependency> -->
-		<!-- <groupId>com.sun.jersey</groupId> -->
-		<!-- <artifactId>jersey-grizzly2</artifactId> -->
-		<!-- </dependency> -->
-		<!-- <dependency> -->
-		<!-- <groupId>org.glassfish.grizzly</groupId> -->
-		<!-- <artifactId>grizzly-http-servlet</artifactId> -->
-		<!-- <version>2.2.16</version> -->
-		<!-- </dependency> -->
-
 		<dependency>
 			<groupId>com.thetransactioncompany</groupId>
 			<artifactId>cors-filter</artifactId>
@@ -118,49 +107,25 @@
 			<groupId>org.eclipse.jetty</groupId>
 			<artifactId>jetty-util</artifactId>
 			<version>${jetty.version}</version>
-		</dependency>
+		</dependency>		
 	</dependencies>
 
 	<build>
-		<plugins>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-shade-plugin</artifactId>
-				<executions>
-					<execution>
-						<phase>package</phase>
-						<goals>
-							<goal>shade</goal>
-						</goals>
-						<configuration>
-							<finalName>stats-mnm-agent-all-${project.version}</finalName>
-							<createDependencyReducedPom>false</createDependencyReducedPom>
-							<transformers>
-								<transformer
-									implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-									<mainClass>com.nordija.statistic.mnm.agent.MonitorAgent</mainClass>
-								</transformer>
-								<transformer
-									implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
-									<resource>META-INF/spring.handlers</resource>
-								</transformer>
-								<transformer
-									implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
-									<resource>META-INF/spring.schemas</resource>
-								</transformer>
-								<transformer
-									implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
-									<resource>application.properties</resource>
-								</transformer>
-								<transformer
-									implementation="org.apache.maven.plugins.shade.resource.XmlAppendingTransformer">
-									<resource>META-INF/spring/applicationContext.xml</resource>
-								</transformer>
-							</transformers>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-		</plugins>
+		<resources>
+			<resource>
+				<directory>src/main/webapp</directory>
+				<includes>
+					<include>**/*</include>
+				</includes>
+				<targetPath>${project.build.directory}/classes/webapp</targetPath>
+			</resource>
+			<resource>
+				<directory>src/main/resources</directory>
+				<includes>
+					<include>**/*</include>
+					<include>*.properties</include>
+				</includes>
+			</resource>
+		</resources>
 	</build>
 </project>
