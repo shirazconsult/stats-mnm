@@ -14,6 +14,8 @@ public class MonitorRestService implements Lifecycle {
 	
 	private final static String webappDirLocation = "webapp";
 	
+	private boolean noDaemon;
+	
 	@Value("${rest.port}")
 	private int port;
 	
@@ -33,7 +35,9 @@ public class MonitorRestService implements Lifecycle {
 	    try {
 			server.start();
 			logger.info("Monitor Rest Service started at "+port);
-//			server.join();		
+			if(noDaemon){
+				server.join();
+			}
 		} catch (Exception e) {
 			throw new RuntimeException("Failed to start embedded web server.",e);
 		}
@@ -75,6 +79,10 @@ public class MonitorRestService implements Lifecycle {
 	    appCtx.setParentLoaderPriority(true);
 	 
 	    server.setHandler(appCtx);
-
  	}
+
+	public void setNoDaemon(boolean noDaemon) {
+		this.noDaemon = noDaemon;
+	}
+
 }
