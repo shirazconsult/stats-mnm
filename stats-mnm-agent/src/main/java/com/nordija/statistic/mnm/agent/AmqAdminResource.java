@@ -137,11 +137,13 @@ public class AmqAdminResource {
 				if(msg.get("messageID") != null){
 					response.addRecord(amqBrokerAdmin.getMessage((String)msg.get("queue"), (String)msg.get("messageID")));
 				}else if(msg.get("selector") != null){
-					response.setData(amqBrokerAdmin.getMessages((String)msg.get("queue"), (String)msg.get("selector")));
+					response.setData(amqBrokerAdmin.getMessages((String)msg.get("queue"), (String)msg.get("selector"), request.getStartRow(), request.getEndRow()));
 				}else{
-					response.setData(amqBrokerAdmin.getMessages((String)msg.get("queue"), null));
+					response.setData(amqBrokerAdmin.getMessages((String)msg.get("queue"), null, request.getStartRow(), request.getEndRow()));
 				}
 				response.setTotalRows(response.getData().size());
+				response.setStartRow(request.getStartRow());
+				response.setEndRow(request.getStartRow()+response.getData().size());
 			} catch (Exception e) {
 				logger.error("Error in fetching messages.", e);
 				throw new WebApplicationException(e, 500);
