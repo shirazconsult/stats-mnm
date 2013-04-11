@@ -19,9 +19,11 @@ public class MonitorAgent {
 		try {
             ClassPathXmlApplicationContext context = loadContext();
             
-            startServices(context);
-            
-            daemonize(context);
+            boolean noDaemon = (args.length == 0 ? false : args[0].equalsIgnoreCase("--no-daemon"));
+            startServices(context, noDaemon);
+            if(!noDaemon){            	
+            	daemonize(context);
+            }
         } catch (Exception e1) {
             logger.info("Failed to start as daemon", e1);
             System.exit(0);
@@ -78,6 +80,10 @@ public class MonitorAgent {
     }
 
     static public void startServices(final ApplicationContext context) throws Exception{
+    	startServices(context, false);
+    }
+    
+    static public void startServices(final ApplicationContext context, boolean noDaemon) throws Exception{
     	Thread t1 = new Thread(){    		
     		@Override
     		public void run() {
@@ -138,13 +144,14 @@ public class MonitorAgent {
 		MonitorRestService restService = context.getBean(MonitorRestService.class); 
         try{
         	restService.start();
+        	restService.setNoDaemon(noDaemon);
         }catch(Exception e){
         	logger.error("Failed to start Rest Service. Exiting...", e.getCause());
         	throw e;
         }
         logger.info("Successfully started Rest Services.");
     }
-    
+
     static public void shutdown(ApplicationContext context) {
         logger.info("Shutting down Monitor Daemon services.");
         shutdownRequested = true;
