@@ -29,7 +29,7 @@ public class AmqAdminResource {
 	
 	@Autowired
 	private ActiveMQBrokerAdmin amqBrokerAdmin;
-	
+		
 	@POST
 	@Path("/brokerInfo")
 	public DSResponse brokerInfo(DSRequest request){
@@ -137,13 +137,21 @@ public class AmqAdminResource {
 				if(msg.get("messageID") != null){
 					response.addRecord(amqBrokerAdmin.getMessage((String)msg.get("queue"), (String)msg.get("messageID")));
 				}else if(msg.get("selector") != null){
+					logger.debug("FETCH: startRow = {}, endRow = {}, selector = {}.", new Object[]{request.getStartRow(), request.getEndRow(), msg.get("selector")});
 					response.setData(amqBrokerAdmin.getMessages((String)msg.get("queue"), (String)msg.get("selector"), request.getStartRow(), request.getEndRow()));
 				}else{
+					logger.debug("FETCH: startRow = {}, endRow = {}.", request.getStartRow(), request.getEndRow());
 					response.setData(amqBrokerAdmin.getMessages((String)msg.get("queue"), null, request.getStartRow(), request.getEndRow()));
 				}
-				response.setTotalRows(response.getData().size());
 				response.setStartRow(request.getStartRow());
-				response.setEndRow(request.getStartRow()+response.getData().size());
+				response.setEndRow(request.getStartRow()+(response.getData() == null ? 0 : response.getData().size()));
+				if(request.getEndRow() > response.getEndRow()){					
+					response.setTotalRows(response.getEndRow());
+				}else{
+					response.setTotalRows(getMaxPageSize((String)msg.get("queue")));
+				}
+				logger.info("FETCH response: startRow = {}, endRow = {}, totalRows = {}.", 
+						new Object[]{response.getStartRow(), response.getEndRow(), response.getTotalRows()});
 			} catch (Exception e) {
 				logger.error("Error in fetching messages.", e);
 				throw new WebApplicationException(e, 500);
@@ -208,4 +216,16 @@ public class AmqAdminResource {
 		logger.warn("No message was moved from {} to {}, probably because neither 'msgId' nor 'selector' was specified in the request.");
 		return 0;
 	}	
+	
+	private int maxPageSize;
+	private int getMaxPageSize(String queue){
+		if(maxPageSize == 0){
+			try {
+				maxPageSize = amqBrokerAdmin.getMaxPageSize(queue);
+			} catch (Exception e) {
+				maxPageSize = 400;
+			}
+		}
+		return maxPageSize;
+	}
 }
