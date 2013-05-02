@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:aop="http://www.springframework.org/schema/aop" xmlns:tx="http://www.springframework.org/schema/tx"
+	xmlns:p="http://www.springframework.org/schema/p" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:util="http://www.springframework.org/schema/util"
+	xsi:schemaLocation="
+			http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+			http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop.xsd
+			http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx.xsd
+			http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util.xsd
+			http://www.springframework.org/schema/batch http://www.springframework.org/schema/batch/spring-batch.xsd">
+
+	<bean id="jobRepository"
+		class="org.springframework.batch.core.repository.support.MapJobRepositoryFactoryBean">
+		<property name="transactionManager" ref="transactionManager" />
+	</bean>
+
+	<bean id="transactionManager"
+		class="org.springframework.batch.support.transaction.ResourcelessTransactionManager" />
+
+	<bean id="jobLauncher"
+		class="org.springframework.batch.core.launch.support.SimpleJobLauncher">
+		<property name="jobRepository" ref="jobRepository" />
+	</bean>
+
+	<job id="migrateLiveStatsJob" xmlns="http://www.springframework.org/schema/batch">
+		<step id="migrateLiveStatsJobStep">
+			<tasklet>
+				<chunk reader="itemReader" processor="statsLiveDataProcessor" writer="itemWriter"
+					commit-interval="100">
+				</chunk>
+			</tasklet>
+		</step>
+	</job>
+
+	<bean id="itemReader"
+		class="org.springframework.batch.item.database.JdbcCursorItemReader">
+		<property name="dataSource" ref="dataSource" />
+		<property name="sql" value="select * from live_stats" />
+		<property name="verifyCursorPosition" value="true" />
+		<property name="rowMapper">
+			<bean class="com.nordija.statistic.mnm.stats.StatsRowListMapper" />
+		</property>
+	</bean>
+
+	<bean id="itemWriter"
+		class="org.springframework.batch.item.database.JdbcBatchItemWriter">
+		<property name="assertUpdates" value="true" />
+		<property name="itemPreparedStatementSetter">
+			<bean class="com.nordija.statistic.mnm.stats.livedatasimulation.StatsPreparedStatementSetter" />
+		</property>
+		<property name="sql"
+			value="insert into statistic (id, cusRef, devRef, devType, devModel, timeZone, cusGrRefs, ref, type, name, time, duration, extra, deliveredTS, insertedTS) 
+					values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)" />
+		<property name="dataSource" ref="dataSource" />
+	</bean>
+
+	<bean id="statsLiveDataProcessor" class="com.nordija.statistic.mnm.stats.livedatasimulation.StatsLiveDataProcessor">
+		<property name="delayMillis" value="${delay.millis}" />
+		<property name="numOfRecordsBeforDealy" value="${num.of.records.befor.dealy}" />
+		<property name="timeOffsetFromNow" value="${time.offset.from.now}" />
+	</bean>
+</beans>
+
