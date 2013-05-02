@@ -18,11 +18,16 @@
 				<value>${conf.dir}/mnm-agent.conf</value>				
 				<value>${conf.dir}/jms.conf</value>
 				<value>${conf.dir}/amq-admin.conf</value>
-				<value>${conf.dir}/monitor.conf</value>					
+				<value>${conf.dir}/monitor.conf</value>	
+				<value>${conf.dir}/outbound-dbpersister.conf</value>				
 			</list>
 		</property>
 		<property name="ignoreResourceNotFound" value="true"/>		
 		<property name="systemPropertiesModeName" value="SYSTEM_PROPERTIES_MODE_OVERRIDE" />
 	</bean>
+ 
+ 	<import resource="datasources.xml" />
+ 
+ 	<bean id="jacksonMapper" class="org.codehaus.jackson.map.ObjectMapper"/>
  
 </beans>

@@ -10,6 +10,8 @@ import org.springframework.context.support.ClassPathXmlApplicationContext;
 
 import com.nordija.activemq.monitor.BrokerMonitor;
 import com.nordija.activemq.monitor.Monitor;
+import com.nordija.statistic.mnm.stats.StreamingStatsDataCacheLoader;
+import com.nordija.statistic.mnm.stats.StreamingStatsDataProcessor;
 import com.nordija.statistic.monitoring.aggregatorImpl.AggregatorMonitorImpl;
 
 public class MonitorAgent {
@@ -140,6 +142,26 @@ public class MonitorAgent {
 
     	t1.start();
     	t2.start();
+
+//    	StreamingStatsDataCacheLoader statsDataLoaderService = context.getBean(StreamingStatsDataCacheLoader.class);
+//    	// TODO: remove the following two lines
+//    	statsDataLoaderService.setMaxCacheSizeInMillis(100000);
+//    	statsDataLoaderService.setPageSizeInMillis(5000);
+//    	try{
+//    		statsDataLoaderService.start();
+//    	}catch(Exception ex){
+//    		logger.error("Failed to start statsDataLoader service.", ex);
+//    	}
+
+    	StreamingStatsDataProcessor statsDataProcessor = context.getBean(StreamingStatsDataProcessor.class);
+    	statsDataProcessor.setStartFromId(0);
+    	statsDataProcessor.setTimeslotMinutes(60);
+    	try{
+    		statsDataProcessor.start();
+    	}catch(Exception ex){
+    		logger.error("Failed to start Stats Data Processor service.", ex);
+    	}
+    	logger.info("Started Stats Data Processor service successfully.");
     	
 		MonitorRestService restService = context.getBean(MonitorRestService.class); 
         try{
@@ -175,6 +197,16 @@ public class MonitorAgent {
 				logger.error("Failed to shutdown Aggregator monitor gracefully", e);
 			}
 
+            StreamingStatsDataProcessor statsDataProcessor = context.getBean(StreamingStatsDataProcessor.class);
+            try{
+            	logger.info("Shutting down Stats Data processor.");
+            	if(statsDataProcessor.isRunning()){
+            		statsDataProcessor.stop();
+            	}
+            }catch (Exception e) {
+				logger.error("Failed to shutdown Stats Data processor gracefully", e);
+			}
+            
             try{
             	logger.info("Stopping the Rest Service.");
             	MonitorRestService restService = context.getBean(MonitorRestService.class);

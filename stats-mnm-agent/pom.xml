@@ -26,13 +26,21 @@
 			<artifactId>nordija-amq-admin</artifactId>
 			<version>1.0.0-SNAPSHOT</version>
 		</dependency>
-
+		
 		<!-- spring -->
 		<dependency>
 			<groupId>org.springframework</groupId>
 			<artifactId>spring-web</artifactId>
 		</dependency>
-
+		<dependency>
+			<groupId>org.springframework.batch</groupId>
+			<artifactId>spring-batch-core</artifactId>
+		</dependency>
+		<dependency>
+        	<groupId>org.springframework.batch</groupId>
+            <artifactId>spring-batch-infrastructure</artifactId>
+        </dependency>
+        		
 		<!-- jersey -->
 		<dependency>
 			<groupId>com.sun.jersey</groupId>
@@ -108,6 +116,16 @@
 			<artifactId>jetty-util</artifactId>
 			<version>${jetty.version}</version>
 		</dependency>		
+		
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>		
+		</dependency>
+		
+<dependency>
+							<groupId>mysql</groupId>
+							<artifactId>mysql-connector-java</artifactId>
+							</dependency>		
 	</dependencies>
 
 	<build>
