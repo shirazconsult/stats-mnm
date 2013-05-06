@@ -65,7 +65,7 @@ public class StatsDataProvider {
 	private NestedList<Object> fetch(long from, long to){
 		NestedList<Object> res = new NestedList<Object>(); 
 		List<Map<String, Object>> resultList = getJdbcTemplate().queryForList(
-				"select * from stats_view where fromTS > ? and toTS <= ? order by fromTS, toTS", from, to);
+				"select * from stats_view where toTS > ? and toTS <= ? order by fromTS, toTS", from, to);
 		for (Map<String, Object> row : resultList) {
 			ListResult<Object> rec = new ListResult<Object>();
 			for (String col : StatsDataProcessor.viewColumns) {					
