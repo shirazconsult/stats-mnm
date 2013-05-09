@@ -75,6 +75,20 @@ public class SmartgwtDSRequestBodyReader implements MessageBodyReader<DSRequest>
 				   }
 				   res.setData(dataMap);
 			   }
+		   }
+		   Node oldValues = root.getElementsByTagName("oldValues").item(0);
+		   if(oldValues != null){
+			   NodeList ovElems = oldValues.getChildNodes();
+			   if(ovElems != null){
+				   Map<String, Object> ovMap = new HashMap<String, Object>();
+				   for(int i=0; i<ovElems.getLength(); i++){
+					   Node item = ovElems.item(i);
+					   if(item.getNodeType() == Node.ELEMENT_NODE){
+						   ovMap.put(item.getNodeName(), item.getTextContent().trim());
+					   }
+				   }
+				   res.setOldValues(ovMap);
+			   }
 		   }		   
 		} catch (Exception e) {
 			log.error("Error when parsing the response.", e);

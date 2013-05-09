@@ -10,15 +10,24 @@ import org.apache.camel.Header;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import com.nordija.statistic.monitoring.aggregator.AbstractAggregatorMonitorHelper;
+import com.nordija.statistic.admin.AggregatorJmxConnector;
 
 @Deprecated
 @Component("aggregatorVMMonitorHelper")
-public class AggregatorVMMonitorHelper extends AbstractAggregatorMonitorHelper{
+public class AggregatorVMMonitorHelper {
 	private final static Logger logger = LoggerFactory.getLogger(AggregatorVMMonitorHelper.class);
 			
+	@Autowired private AggregatorJmxConnector aggregatorJmxConnector;
+
+	@Value("${aggregator.data.dir}")
+	protected String dataDir;
+	@Value("${aggregator.data.file.prefix}")
+	protected String filePrefix;
+
 	// The order in this array should not be changed, since both data collection and gnuplotters 
 	// are based on that
 	private final static String[] vmDataAttributes = {
@@ -27,9 +36,9 @@ public class AggregatorVMMonitorHelper extends AbstractAggregatorMonitorHelper{
 			
 	public String getData(@Header(Exchange.TIMER_PERIOD) long period, 
 			@Header(Exchange.TIMER_COUNTER) long counter) throws Exception {
-		MemoryMXBean memMXBean = (MemoryMXBean) getMXBeanProxyCache().get("Memory");
-		ThreadMXBean threadingMXBean = (ThreadMXBean) getMXBeanProxyCache().get("Threading");
-		OperatingSystemMXBean opSysMXBean = (OperatingSystemMXBean) getMXBeanProxyCache().get("OperatingSystem");
+		MemoryMXBean memMXBean = (MemoryMXBean) aggregatorJmxConnector.getMXBeanProxyCache().get("Memory");
+		ThreadMXBean threadingMXBean = (ThreadMXBean) aggregatorJmxConnector.getMXBeanProxyCache().get("Threading");
+		OperatingSystemMXBean opSysMXBean = (OperatingSystemMXBean) aggregatorJmxConnector.getMXBeanProxyCache().get("OperatingSystem");
 		
 		long time = period*counter;
 		StringBuilder sb = new StringBuilder().

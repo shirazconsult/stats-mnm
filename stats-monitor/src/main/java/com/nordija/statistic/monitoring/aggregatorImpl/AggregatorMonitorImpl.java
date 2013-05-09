@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import com.nordija.statistic.admin.AggregatorJmxConnector;
 import com.nordija.statistic.monitoring.aggregator.AggregatorMonitor;
 
 @Component("aggregatorMonitor")
@@ -31,8 +32,8 @@ public class AggregatorMonitorImpl extends RouteBuilder implements AggregatorMon
 	private String[] aggregatorRoutes;
 
 	private AtomicBoolean isRunning = new AtomicBoolean(false);
-	@Autowired
-	private AggregatorMonitorHelper aggregatorMonitorHelper;
+	@Autowired private AggregatorMonitorHelper aggregatorMonitorHelper;
+	@Autowired private AggregatorJmxConnector aggregatorJmxConnector;
 
 	@Override
 	public void configure() throws Exception {
@@ -72,7 +73,7 @@ public class AggregatorMonitorImpl extends RouteBuilder implements AggregatorMon
 //			getContext().stopRoute("aggregator.routes.monitor");
 //			getContext().stopRoute("aggregator.vm.monitor");
 			getContext().stopRoute("aggregator.context.monitor");
-			aggregatorMonitorHelper.cleanup();
+			aggregatorJmxConnector.cleanup();
 			isRunning.set(false);
 		} catch (Exception e) {
 			logger.error("Failed to stop. ", e);
@@ -88,7 +89,7 @@ public class AggregatorMonitorImpl extends RouteBuilder implements AggregatorMon
 	public boolean testConnection() {
 		MBeanServerConnection jmxConnection = null;
 		try {
-			jmxConnection = aggregatorMonitorHelper.getJmxConnection();
+			jmxConnection = aggregatorJmxConnector.getJmxConnection();
 		} catch (IOException e) {
 			logger.error("Failed to connect to the aggregator's jmx agent.", e);
 			return false;
@@ -104,22 +105,22 @@ public class AggregatorMonitorImpl extends RouteBuilder implements AggregatorMon
 	@Override
 	public boolean isActive() {
 		try {
-			Integer inflightExchanges = (Integer)aggregatorMonitorHelper.getMBeanAttribute("aggregator", "InflightExchanges");
+			Integer inflightExchanges = (Integer)aggregatorJmxConnector.getMBeanAttribute("aggregator", "InflightExchanges");
 			if(inflightExchanges != 0){
 				logger.info("Number of inflight exchagnes is {}.", inflightExchanges);
 				return true;
 			}
-			inflightExchanges = (Integer)aggregatorMonitorHelper.getMBeanAttribute("db.persister", "InflightExchanges");
+			inflightExchanges = (Integer)aggregatorJmxConnector.getMBeanAttribute("db.persister", "InflightExchanges");
 			if(inflightExchanges != 0){
 				logger.info("Number of inflight exchagnes is {}.", inflightExchanges);
 				return true;
 			}
-			Date lastCompleted = (Date)aggregatorMonitorHelper.getMBeanAttribute("aggregator", "LastExchangeCompletedTimestamp");
+			Date lastCompleted = (Date)aggregatorJmxConnector.getMBeanAttribute("aggregator", "LastExchangeCompletedTimestamp");
 			if(lastCompleted != null && lastCompleted.getTime() <= System.currentTimeMillis()-60000){
 				logger.info("Last completed exchange was at {}.", lastCompleted);
 				return true;
 			}
-			lastCompleted = (Date)aggregatorMonitorHelper.getMBeanAttribute("db.persister", "LastExchangeCompletedTimestamp");
+			lastCompleted = (Date)aggregatorJmxConnector.getMBeanAttribute("db.persister", "LastExchangeCompletedTimestamp");
 			if(lastCompleted != null && lastCompleted.getTime() <= System.currentTimeMillis()-60000){
 				logger.info("Last completed exchange was at {}.", lastCompleted);
 				return true;

@@ -29,7 +29,7 @@ public class DSRequest {
 	private int startRow;
 	private int endRow;
 	private String componentId;
-	private String oldValues;
+	private Map<String, Object> oldValues;
 	
 	public OperationType getOperationType() {
 		return operationType;
@@ -78,4 +78,13 @@ public class DSRequest {
 	public void setData(Map<String, Object> data) {
 		this.data = data;
 	}
+
+	public Map<String, Object> getOldValues() {
+		return oldValues;
+	}
+
+	public void setOldValues(Map<String, Object> oldValues) {
+		this.oldValues = oldValues;
+	}
+
 }

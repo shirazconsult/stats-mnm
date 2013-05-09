@@ -1,13 +1,13 @@
-package com.nordija.statistic.monitoring.aggregator;
+package com.nordija.statistic.admin;
 
 import java.io.IOException;
 import java.lang.management.MemoryMXBean;
 import java.lang.management.OperatingSystemMXBean;
 import java.lang.management.ThreadMXBean;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import javax.management.JMX;
 import javax.management.MBeanServerConnection;
@@ -19,36 +19,36 @@ import javax.management.remote.JMXServiceURL;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
 
-public abstract class AbstractAggregatorMonitorHelper {
-	private final static Logger logger = LoggerFactory.getLogger(AbstractAggregatorMonitorHelper.class);
+@Service("aggregatorJmxConnector")
+public class AggregatorJmxConnectorImpl implements AggregatorJmxConnector {
+	private final static Logger logger = LoggerFactory.getLogger(AggregatorJmxConnectorImpl.class);
 	
-	@Value("${aggregator.data.dir}")
-	protected String dataDir;
-	@Value("${aggregator.data.file.prefix}")
-	protected String filePrefix;
 	@Value("${aggregator.jmx.url}")
 	protected String aggregatorJmxUrl;
 	
-	protected Map<String, ObjectName> objectNameCache = null;
-	protected Map<String, Object> mxBeanProxyCache = null;
+	private static Map<String, ObjectName> objectNameCache = null;
+	private static Map<String, Object> mxBeanProxyCache = null;
 
-	private MBeanServerConnection jmxConnection = null;
+//	private MBeanServerConnection jmxConnection = null;
 	private JMXConnector jmxConnector = null;
 			
+	@Override
 	public MBeanServerConnection getJmxConnection() throws IOException{
-		if(jmxConnection == null){
+		if(jmxConnector == null){
 			JMXServiceURL url = new JMXServiceURL(aggregatorJmxUrl);
 			jmxConnector = JMXConnectorFactory.connect(url);
-			jmxConnection = jmxConnector.getMBeanServerConnection();
 		}
-		return jmxConnection;
+		return jmxConnector.getMBeanServerConnection();
 	}
 	
-	protected Map<String, ObjectName> getObjectNameCache() throws Exception{
+	@Override
+	public Map<String, ObjectName> getObjectNameCache() throws Exception{
 		if(objectNameCache == null){
-			objectNameCache = new HashMap<String, ObjectName>();
+			objectNameCache = new ConcurrentHashMap<String, ObjectName>();
 			
+			// cache relevant mbean names under statistics context 
 			ObjectName objName = new ObjectName("statistics:context=*statistic*,type=routes,*");
 			List<ObjectName> objectNameList = new LinkedList<ObjectName>(getJmxConnection().queryNames(objName, null));			
 			for (ObjectName obj : objectNameList) {
@@ -60,13 +60,23 @@ public abstract class AbstractAggregatorMonitorHelper {
 			ObjectName ctxObjName = new ObjectName("statistics:context=*statistic*,type=context,name=\"statisticCtx\"");
 			objectNameCache.put("statisticCtx", getJmxConnection().queryNames(ctxObjName, null).iterator().next());			
 			logger.info("Caching JMX object name {}.", ctxObjName);
+			
+			// cache all mbean name under statistics.aggregator context
+			objName = new ObjectName("statistics.aggregator:*");
+			objectNameList = new LinkedList<ObjectName>(getJmxConnection().queryNames(objName, null));			
+			for (ObjectName obj : objectNameList) {
+				String key = obj.getKeyProperty("name").replace("\"", "");
+				objectNameCache.put(key, obj);
+				logger.info("Caching JMX object name {}.", key);
+			}			
 		}
 		return objectNameCache;
 	}
 	
-	protected Map<String, Object> getMXBeanProxyCache() throws Exception{
+	@Override
+	public Map<String, Object> getMXBeanProxyCache() throws Exception{
 		if(mxBeanProxyCache == null){
-			mxBeanProxyCache = new HashMap<String, Object>();
+			mxBeanProxyCache = new ConcurrentHashMap<String, Object>();
 			
 			ObjectName memObjName = getJmxConnection().queryNames(new ObjectName("java.lang:type=Memory"), null).iterator().next();
 			mxBeanProxyCache.put("Memory", JMX.newMXBeanProxy(getJmxConnection(), memObjName, MemoryMXBean.class));
@@ -80,8 +90,21 @@ public abstract class AbstractAggregatorMonitorHelper {
 		return mxBeanProxyCache;
 	}
 		
+	@Override
 	public Object getMBeanAttribute(String objName, String attr) throws Exception{
 		return getJmxConnection().getAttribute(getObjectNameCache().get(objName), attr);
+	}
+
+	
+	@Override
+	public Object getAttribute(ObjectName objectName, String attr) throws Exception {
+		return getJmxConnection().getAttribute(objectName, attr);
+	}
+
+	@Override
+	public Object invokeOperation(ObjectName objectName, String operation,
+			Object[] params, String[] signature) throws Exception {
+		return getJmxConnection().invoke(objectName, "reset", params, signature);
 	}
 
 	public void cleanup(){

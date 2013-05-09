@@ -22,15 +22,23 @@ import org.apache.commons.io.LineIterator;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import com.nordija.statistic.monitoring.aggregator.AbstractAggregatorMonitorHelper;
+import com.nordija.statistic.admin.AggregatorJmxConnector;
 
 @Component("aggregatorMonitorHelper")
-public class AggregatorMonitorHelper extends AbstractAggregatorMonitorHelper{
+public class AggregatorMonitorHelper {
 	private final static Logger logger = LoggerFactory.getLogger(AggregatorMonitorHelper.class);
 			
+	@Autowired private AggregatorJmxConnector aggregatorJmxConnector;
+	
+	@Value("${aggregator.data.dir}")
+	protected String dataDir;
+	@Value("${aggregator.data.file.prefix}")
+	protected String filePrefix;
+
 	@Value("${aggregator.routes}")
 	private String[] aggregatorRoutes;
 
@@ -57,7 +65,7 @@ public class AggregatorMonitorHelper extends AbstractAggregatorMonitorHelper{
 		long now = new Date().getTime();
 		StringBuilder sb = new StringBuilder();
 		for (String st : dynamicDataAttributes) {
-			Object obj = getMBeanAttribute(aggregatorRoutes[idx], st);
+			Object obj = aggregatorJmxConnector.getMBeanAttribute(aggregatorRoutes[idx], st);
 			sb.append(obj).append(" ");
 		}
 		sb.append(time).append(" ").append(now);
@@ -74,14 +82,14 @@ public class AggregatorMonitorHelper extends AbstractAggregatorMonitorHelper{
 		StringBuilder sb = new StringBuilder();
 		for (String st : dynamicDataAttributes) {
 			if(!st.startsWith("VM")){
-				Object obj = getMBeanAttribute("statisticCtx", st);
+				Object obj = aggregatorJmxConnector.getMBeanAttribute("statisticCtx", st);
 				sb.append(obj).append(" ");
 			}
 		}
 		// vm data
-		MemoryMXBean memMXBean = (MemoryMXBean) getMXBeanProxyCache().get("Memory");
-		ThreadMXBean threadingMXBean = (ThreadMXBean) getMXBeanProxyCache().get("Threading");
-		OperatingSystemMXBean opSysMXBean = (OperatingSystemMXBean) getMXBeanProxyCache().get("OperatingSystem");
+		MemoryMXBean memMXBean = (MemoryMXBean) aggregatorJmxConnector.getMXBeanProxyCache().get("Memory");
+		ThreadMXBean threadingMXBean = (ThreadMXBean) aggregatorJmxConnector.getMXBeanProxyCache().get("Threading");
+		OperatingSystemMXBean opSysMXBean = (OperatingSystemMXBean) aggregatorJmxConnector.getMXBeanProxyCache().get("OperatingSystem");
 
 		sb.append(memMXBean.getHeapMemoryUsage().getUsed()).append(" ").
 		append(memMXBean.getNonHeapMemoryUsage().getUsed()).append(" ").
@@ -105,9 +113,9 @@ public class AggregatorMonitorHelper extends AbstractAggregatorMonitorHelper{
 	private String getDataFileHeader(String objName) throws Exception{
 		// get routeId, state and description for this route
 		StringBuilder sb = new StringBuilder("# ");
-		ObjectName obj = getObjectNameCache().get(objName);
+		ObjectName obj = aggregatorJmxConnector.getObjectNameCache().get(objName);
 		for (String st : staticDataAttributes) {
-			Object attr = getJmxConnection().getAttribute(obj, st);
+			Object attr = aggregatorJmxConnector.getAttribute(obj, st);
 			sb.append(attr).append("::");
 		}
 		sb.append(System.getProperty("line.separator")).
@@ -154,8 +162,8 @@ public class AggregatorMonitorHelper extends AbstractAggregatorMonitorHelper{
 
 	public void resetCounters() throws Exception{
 		for (String routeId : aggregatorRoutes) {
-			ObjectName objName = getObjectNameCache().get(routeId);
-			getJmxConnection().invoke(objName, "reset", null, null);
+			ObjectName objName = aggregatorJmxConnector.getObjectNameCache().get(routeId);
+			aggregatorJmxConnector.invokeOperation(objName, "reset", null, null);
 		}
 	}	
 	
