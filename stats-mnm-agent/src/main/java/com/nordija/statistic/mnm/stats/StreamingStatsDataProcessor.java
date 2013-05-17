@@ -4,9 +4,12 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.NavigableSet;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -14,6 +17,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import javax.sql.DataSource;
 
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.slf4j.Logger;
@@ -30,7 +34,7 @@ public class StreamingStatsDataProcessor implements StatsDataProcessor {
 	private static Logger logger = LoggerFactory.getLogger(StreamingStatsDataProcessor.class);
 
 	// cacheView value is a list of cusRef, name, type, firstDeliveredTS, lastDeliveredTS, duration, devModel and eventually extra-fields like title".
-	static ConcurrentMap<String, ConcurrentMap<StatsViewKey, List<Object>>> viewsMap;
+	static ConcurrentMap<String, ConcurrentMap<StatsViewKey, NavigableSet<List<Object>>>> viewsMap;
 	
 	@Autowired @Qualifier("streamingStatsLoaderDataSource")
 	private DataSource streamingStatsLoaderDataSource;
@@ -118,7 +122,7 @@ public class StreamingStatsDataProcessor implements StatsDataProcessor {
 				updateViews(row);	
 				
 				// Persist views 
-				if(System.currentTimeMillis() - lastPersistedTS >= (timeslotSecs*1000)){
+				if(count % 5000 == 0 || System.currentTimeMillis() - lastPersistedTS >= timeslotMillis){
 					saveViewData();
 					lastPersistedTS = System.currentTimeMillis();
 				}
@@ -141,16 +145,17 @@ public class StreamingStatsDataProcessor implements StatsDataProcessor {
 	}
 
 	private void saveViewData() {
-		long timeslotMillis = timeslotSecs * 1000;
 		List<Object[]> batch = new ArrayList<Object[]>();
 		List<StatsViewKey> persisted = new ArrayList<StatsViewKey>();
-		for (Entry<String, ConcurrentMap<StatsViewKey, List<Object>>> viewMap : viewsMap.entrySet()) {
-			ConcurrentMap<StatsViewKey, List<Object>> view = viewMap.getValue();
-			for (Entry<StatsViewKey, List<Object>> entry : view.entrySet()) {
-				List<Object> rec = entry.getValue();
-				if((Long)rec.get(viewToTSIdx) - (Long)rec.get(viewFromTSIdx) >= timeslotMillis){
-					persisted.add(entry.getKey());
-					batch.add(rec.toArray());
+		for (Entry<String, ConcurrentMap<StatsViewKey, NavigableSet<List<Object>>>> viewMap : viewsMap.entrySet()) {
+			ConcurrentMap<StatsViewKey, NavigableSet<List<Object>>> view = viewMap.getValue();
+			for (Entry<StatsViewKey, NavigableSet<List<Object>>> entry : view.entrySet()) {
+				NavigableSet<List<Object>> recs = entry.getValue();
+				for (List<Object> rec : recs) {					
+					if(isAggregationCompleted(rec)){
+						persisted.add(entry.getKey());
+						batch.add(rec.subList(0, viewCompletedIdx).toArray());
+					}
 				}
 			}
 		}
@@ -167,10 +172,23 @@ public class StreamingStatsDataProcessor implements StatsDataProcessor {
 			}
 		}	
 		// Empty all the views for those entries which are saved into db.
-		for (Entry<String, ConcurrentMap<StatsViewKey, List<Object>>> viewMap : viewsMap.entrySet()) {
-			ConcurrentMap<StatsViewKey, List<Object>> view = viewMap.getValue();
+		for (Entry<String, ConcurrentMap<StatsViewKey, NavigableSet<List<Object>>>> viewMap : viewsMap.entrySet()) {
+			ConcurrentMap<StatsViewKey, NavigableSet<List<Object>>> view = viewMap.getValue();
 			for (StatsViewKey svk : persisted) {
-				view.remove(svk);
+				NavigableSet<List<Object>> recs = view.get(svk);
+				if(!CollectionUtils.isEmpty(recs)){
+					// Only the first entry in the record set may not be persisted/completed				
+					List<Object> first = recs.first();
+					if(isAggregationCompleted(first)){
+						recs.clear();
+						view.remove(svk);
+					}else{
+						NavigableSet<List<Object>> tail = recs.tailSet(first, false);
+						if(!CollectionUtils.isEmpty(tail)){
+							tail.clear();
+						}
+					}
+				}
 			}
 		}
 		persisted.clear();
@@ -180,7 +198,7 @@ public class StreamingStatsDataProcessor implements StatsDataProcessor {
 	@SuppressWarnings("unchecked")
 	private void updateViews(List<Object> row){
 		String type = (String)row.get(8);
-		ConcurrentMap<StatsViewKey, List<Object>> cacheView = viewsMap.get(type);
+		ConcurrentMap<StatsViewKey, NavigableSet<List<Object>>> cacheView = viewsMap.get(type);
 
 		if(cacheView == null){
 			logger.warn("No view found for event of type = {}.", type);
@@ -196,13 +214,33 @@ public class StreamingStatsDataProcessor implements StatsDataProcessor {
 				logger.warn("Unable to unmarshal the extra part of record.");
 			}
 		}
-		String title = extra != null ? (String)extra.get("title") : null;
-		title = title != null && title.length() > 64 ? title.substring(0, 64) : title;
-		
+		String title = extra != null ? (String)extra.get("title") : "No title";
+		title = title != null && title.length() > 64 ? title.substring(0, 64) : (title == null ? "No title" : title);
 		long duration = row.get(durationIdx) == null ? 0L : (Long)row.get(durationIdx);
+		
 		StatsViewKey viewKey = new StatsViewKey((String)row.get(typeIdx), (String)row.get(nameIdx), title);
-		List<Object> rec = cacheView.get(viewKey);
-		if(rec == null){
+		List<Object> rec = null;
+		NavigableSet<List<Object>> recs = cacheView.get(viewKey);
+		if(CollectionUtils.isEmpty(recs)){
+			TreeSet<List<Object>> records = new TreeSet<List<Object>>(new Comparator<List<Object>>() {
+				@Override
+				public int compare(List<Object> rec1, List<Object> rec2) {
+					Long first = (Long)rec1.get(viewToTSIdx) - (Long)rec1.get(viewFromTSIdx);
+					Long second = (Long)rec2.get(viewToTSIdx) - (Long)rec2.get(viewFromTSIdx);
+					return first.compareTo(second);
+				}
+			});
+			cacheView.put(viewKey, records);
+		}else{
+			rec = recs.first();
+		}
+		
+		// We have to make sure that no records exist in cache, whose viewToTSIdx is larger than timeslotSecs (5 minutes)
+		// because we cannot rely on persisting every 5 minutes.
+		if(isRowTooFarAhead(row, rec)){
+			rec.set(viewCompletedIdx, new Boolean(true));
+		}
+		if(rec == null || isAggregationCompleted(rec)){
 			rec = new ArrayList<Object>();
 			rec.add(viewKey.type);
 			rec.add(viewKey.name);
@@ -213,7 +251,8 @@ public class StreamingStatsDataProcessor implements StatsDataProcessor {
 			rec.add(duration);	// duration
 			rec.add(row.get(deliveredTSIdx));		// from
 			rec.add(row.get(deliveredTSIdx));		// to
-			cacheView.put(viewKey, rec);
+			rec.add(new Boolean(false));
+			cacheView.get(viewKey).add(rec);
 		}else{
 			rec.set(viewSumIdx, ((Long)rec.get(viewSumIdx))+1);
 			rec.set(viewMinDurationIdx, Math.min((Long)rec.get(viewMinDurationIdx), duration));
@@ -223,6 +262,15 @@ public class StreamingStatsDataProcessor implements StatsDataProcessor {
 		}
 	}
 		
+	private final long timeslotMillis = timeslotSecs*1000;
+	private boolean isAggregationCompleted(List<Object> rec){
+		return (Boolean)rec.get(viewCompletedIdx) || (Long)rec.get(viewToTSIdx) - (Long)rec.get(viewFromTSIdx) >= timeslotMillis;
+	}
+	private final long tooFarAheadMillis = timeslotMillis+(timeslotMillis/5);
+	private boolean isRowTooFarAhead(List<Object> row, List<Object> rec){		
+		return row != null && rec != null && (Long)row.get(deliveredTSIdx) - (Long)rec.get(viewToTSIdx) >= tooFarAheadMillis;
+	}
+
 	private String getSql(){
 		if(totalRecords.get() == 0){
 			return "select * from statistic where id >= "+startFromId;
@@ -237,10 +285,10 @@ public class StreamingStatsDataProcessor implements StatsDataProcessor {
 	public void start() {
 		dataStreamerThread = new Thread(new Runnable() {			
 			@Override
-			public void run() {				
-				viewsMap = new ConcurrentHashMap<String, ConcurrentMap<StatsViewKey,List<Object>>>();
+			public void run() {
+				viewsMap = new ConcurrentHashMap<String, ConcurrentMap<StatsViewKey, NavigableSet<List<Object>>>>();
 				for (String event : events) {					
-					viewsMap.put(event, new ConcurrentHashMap<StatsViewKey, List<Object>>());
+					viewsMap.put(event, new ConcurrentHashMap<StatsViewKey, NavigableSet<List<Object>>>());
 				}
 				
 				jdbcViewPersister = new JdbcTemplate(dataSource);
@@ -291,8 +339,8 @@ public class StreamingStatsDataProcessor implements StatsDataProcessor {
 		this.startFromId = startFromId;
 	}
 
-	public void setTimeslotMinutes(int timeslotMinutes) {
-		this.timeslotSecs = timeslotMinutes;
+	public void setTimeslotSecs(int timeslotSecs) {
+		this.timeslotSecs = Math.min(this.timeslotSecs, timeslotSecs);
 	}
 	
 }

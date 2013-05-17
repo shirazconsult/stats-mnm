@@ -155,7 +155,7 @@ public class MonitorAgent {
 
     	StreamingStatsDataProcessor statsDataProcessor = context.getBean(StreamingStatsDataProcessor.class);
     	statsDataProcessor.setStartFromId(0);
-    	statsDataProcessor.setTimeslotMinutes(60);
+    	statsDataProcessor.setTimeslotSecs(300);
     	try{
     		statsDataProcessor.start();
     	}catch(Exception ex){

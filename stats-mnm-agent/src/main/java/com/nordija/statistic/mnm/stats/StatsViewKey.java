@@ -1,7 +1,6 @@
 package com.nordija.statistic.mnm.stats;
 
 public class StatsViewKey implements Comparable<StatsViewKey> {
-	// only cusRef and name are used for the natural ordering based on hashCode, equals and comparator
 	String type;
 	String name;
 	String title;

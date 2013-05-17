@@ -62,6 +62,32 @@ public class StatsDataProvider {
 		}		
 	}
 
+	@GET
+	@Path("/nextpage/views/{type}/{from}/{to}")
+	public NestedList<Object> getViewPage(@PathParam("type") String type, @PathParam("from") long from, @PathParam("to") long to) {
+		logger.debug("Returning statistics view rows from {} to {} for {}.", new Object[]{from, to, type});
+		try {
+			return fetch(type, from, to);
+		} catch (Exception e) {
+			logger.error("Failed to retrieve records for date interval {} - {}. Reason {}", new Object[]{from, to, e.getMessage()});
+			throw new WebApplicationException(e, 500);
+		}		
+	}
+
+	private NestedList<Object> fetch(String type, long from, long to) {
+		NestedList<Object> res = new NestedList<Object>(); 
+		List<Map<String, Object>> resultList = getJdbcTemplate().queryForList(
+				"select * from stats_view where type = ? and toTS > ? and toTS <= ? order by fromTS, toTS", type, from, to);
+		for (Map<String, Object> row : resultList) {
+			ListResult<Object> rec = new ListResult<Object>();
+			for (String col : StatsDataProcessor.viewColumns) {					
+				rec.addElement(row.get(col));
+			}
+			res.addRow(rec);
+		}
+		return res;
+	}
+
 	private NestedList<Object> fetch(long from, long to){
 		NestedList<Object> res = new NestedList<Object>(); 
 		List<Map<String, Object>> resultList = getJdbcTemplate().queryForList(

@@ -6,10 +6,11 @@ public interface StatsDataProcessor extends Lifecycle {
 	public static String[] viewColumns = {
 		"type", "name", "title", "sum", "minDuration", "maxDuration", "totalDuration", "fromTS", "toTS"};
 	public static String[] events = {
-		"LiveUsage", "widgetShow", "VodUsageMOVIE", "VodUsageTRAILER", "DvrUsage", 
-		"WebTVLogin", "STARTOVERUsage", "TIMESHIFTUsage", "movieRent", "shopLoaded", 
-	"adAdtion"};
-
+		"adAdtion", "DvrUsage", "LiveUsage", "movieRent", "SelfCareSUBSCRIBE", "shopLoaded", 
+		"STARTOVERUsage", "TIMESHIFTUsage", "VodUsageMOVIE", "VodUsageTRAILER", 
+		"WebTVLogin", "widgetShow" 
+	};
+	
 	static final int viewTypeIdx = 0;
 	static final int viewNameIdx = 1;
 	static final int viewTitleIdx = 2;
@@ -19,6 +20,7 @@ public interface StatsDataProcessor extends Lifecycle {
 	static final int viewTotalDurationIdx = 6;
 	static final int viewFromTSIdx = 7; 
 	static final int viewToTSIdx = 8;
+	static final int viewCompletedIdx = 9;
 	
 	static final int typeIdx = 8;
 	static final int nameIdx = 9;
