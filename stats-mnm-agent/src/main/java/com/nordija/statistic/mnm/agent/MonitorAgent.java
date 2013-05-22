@@ -2,7 +2,10 @@ package com.nordija.statistic.mnm.agent;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
 
+import org.apache.commons.collections.CollectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
@@ -10,7 +13,6 @@ import org.springframework.context.support.ClassPathXmlApplicationContext;
 
 import com.nordija.activemq.monitor.BrokerMonitor;
 import com.nordija.activemq.monitor.Monitor;
-import com.nordija.statistic.mnm.stats.StreamingStatsDataCacheLoader;
 import com.nordija.statistic.mnm.stats.StreamingStatsDataProcessor;
 import com.nordija.statistic.monitoring.aggregatorImpl.AggregatorMonitorImpl;
 
@@ -21,11 +23,26 @@ public class MonitorAgent {
 		try {
             ClassPathXmlApplicationContext context = loadContext();
             
-            boolean noDaemon = (args.length == 0 ? false : args[0].equalsIgnoreCase("--no-daemon"));
-            startServices(context, noDaemon);
-            if(!noDaemon){            	
-            	daemonize(context);
+            boolean noDaemon = false;
+            List<String> services = null;
+            for (String arg : args) {
+            	String[] ar = arg.split(" ");
+            	for (int i = 0; i < ar.length; i++) {					
+            		if(ar[i].equalsIgnoreCase("--no-daemon")){
+            			noDaemon = true;					
+            		}else if(ar[i].startsWith("--services=")){
+            			String s = arg.substring(arg.indexOf("=")+1);
+            			String[] split = s.split(",");
+            			services = Arrays.asList(split);
+            		}
+				}
+			}
+            if(CollectionUtils.isEmpty(services)){
+            	logger.error("No Services are being started. Please define services as a comma separated list. " +
+            			"Ex. --services=[REST,AMQ_MONITOR,AGG_MONITOR,STATS_DATA_PROCESSOR]");
+            	System.exit(0);
             }
+            startServices(context, noDaemon, services);
         } catch (Exception e1) {
             logger.info("Failed to start as daemon", e1);
             System.exit(0);
@@ -81,12 +98,8 @@ public class MonitorAgent {
         return new File(pid);
     }
 
-    static public void startServices(final ApplicationContext context) throws Exception{
-    	startServices(context, false);
-    }
-    
-    static public void startServices(final ApplicationContext context, boolean noDaemon) throws Exception{
-    	Thread t1 = new Thread(){    		
+    private static void startAmqMonitor(final ApplicationContext context) throws Exception{
+    	Thread t = new Thread(){    		
     		@Override
     		public void run() {
     			Monitor brokerMonitor = context.getBean(BrokerMonitor.class);
@@ -107,9 +120,12 @@ public class MonitorAgent {
     				}
     			}
     		}
-    	};
-		    	
-    	Thread t2 = new Thread(){    		
+    	};    	
+    	t.start();
+    }
+    
+    private static void startAggMonitor(final ApplicationContext context) throws Exception{
+    	Thread t = new Thread(){    		
     		@Override
     		public void run() {
     			while(true){
@@ -139,20 +155,10 @@ public class MonitorAgent {
     			}
     		}
     	};
-
-    	t1.start();
-    	t2.start();
-
-//    	StreamingStatsDataCacheLoader statsDataLoaderService = context.getBean(StreamingStatsDataCacheLoader.class);
-//    	// TODO: remove the following two lines
-//    	statsDataLoaderService.setMaxCacheSizeInMillis(100000);
-//    	statsDataLoaderService.setPageSizeInMillis(5000);
-//    	try{
-//    		statsDataLoaderService.start();
-//    	}catch(Exception ex){
-//    		logger.error("Failed to start statsDataLoader service.", ex);
-//    	}
-
+    	t.start();
+    }
+    
+    private static void startStatsDataProcessor(final ApplicationContext context) throws Exception{    	
     	StreamingStatsDataProcessor statsDataProcessor = context.getBean(StreamingStatsDataProcessor.class);
     	statsDataProcessor.setStartFromId(0);
     	statsDataProcessor.setTimeslotSecs(300);
@@ -162,16 +168,32 @@ public class MonitorAgent {
     		logger.error("Failed to start Stats Data Processor service.", ex);
     	}
     	logger.info("Started Stats Data Processor service successfully.");
-    	
-		MonitorRestService restService = context.getBean(MonitorRestService.class); 
-        try{
-        	restService.start();
-        	restService.setNoDaemon(noDaemon);
-        }catch(Exception e){
-        	logger.error("Failed to start Rest Service. Exiting...", e.getCause());
-        	throw e;
-        }
-        logger.info("Successfully started Rest Services.");
+    }
+    
+    private static void startRestServices(final ApplicationContext context, boolean noDaemon) throws Exception{
+    	MonitorRestService restService = context.getBean(MonitorRestService.class); 
+    	try{
+    		restService.start();
+    		restService.setNoDaemon(noDaemon);
+    	}catch(Exception e){
+    		logger.error("Failed to start Rest Service. Exiting...", e.getCause());
+    		throw e;
+    	}
+    	logger.info("Successfully started Rest Services.");    	
+    }
+    
+    public static void startServices(final ApplicationContext context, boolean noDaemon, List<String> services) throws Exception{
+    	for (String ser : services) {
+			if(ser.equalsIgnoreCase(Service.AMQ_MONITOR.name())){
+				startAmqMonitor(context);
+			}else if(ser.equalsIgnoreCase(Service.AGG_MONITOR.name())){
+				startAggMonitor(context);
+			}else if(ser.equalsIgnoreCase(Service.STATS_DATA_PROCESSOR.name())){
+				startStatsDataProcessor(context);
+			}else if(ser.equalsIgnoreCase(Service.REST.name())){
+				startRestServices(context, noDaemon);
+			}
+		}
     }
 
     static public void shutdown(ApplicationContext context) {
