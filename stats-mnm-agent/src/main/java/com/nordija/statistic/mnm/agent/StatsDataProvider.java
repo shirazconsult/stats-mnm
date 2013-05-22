@@ -23,7 +23,6 @@ import org.springframework.stereotype.Service;
 
 import com.nordija.statistic.mnm.rest.model.ListResult;
 import com.nordija.statistic.mnm.rest.model.NestedList;
-import com.nordija.statistic.mnm.stats.StatsDataCacheLoader;
 import com.nordija.statistic.mnm.stats.StatsDataProcessor;
 
 @Service("statsDataProvider")
@@ -51,7 +50,7 @@ public class StatsDataProvider {
 	}
 
 	@GET
-	@Path("/nextpage/views/{from}/{to}")
+	@Path("/views/{from}/{to}")
 	public NestedList<Object> getViewPage(@PathParam("from") long from, @PathParam("to") long to) {
 		logger.debug("Returning statistics view rows from {} to {}.", from, to);
 		try {
@@ -63,7 +62,7 @@ public class StatsDataProvider {
 	}
 
 	@GET
-	@Path("/nextpage/views/{type}/{from}/{to}")
+	@Path("/views/{type}/{from}/{to}")
 	public NestedList<Object> getViewPage(@PathParam("type") String type, @PathParam("from") long from, @PathParam("to") long to) {
 		logger.debug("Returning statistics view rows from {} to {} for {}.", new Object[]{from, to, type});
 		try {
@@ -72,6 +71,40 @@ public class StatsDataProvider {
 			logger.error("Failed to retrieve records for date interval {} - {}. Reason {}", new Object[]{from, to, e.getMessage()});
 			throw new WebApplicationException(e, 500);
 		}		
+	}
+
+	@GET
+	@Path("/views/top/{type}/{from}/{to}")
+	public NestedList<Object> getTopViewPage(
+			@PathParam("type") String type, @PathParam("from") long from, @PathParam("to") long to,
+			@QueryParam("criteria") String criteria, @QueryParam("size") int size) {
+		logger.debug("Returning statistics view rows from {} to {} for {}.", new Object[]{from, to, type});
+		try {
+			if(criteria != null && criteria.equalsIgnoreCase("duration")){
+				return fetchTops(type, from, to, "duration", size);
+			}else{  
+				return fetchTops(type, from, to, "viewers", size);
+			}
+		} catch (Exception e) {
+			logger.error("Failed to retrieve records for date interval {} - {}. Reason {}", new Object[]{from, to, e.getMessage()});
+			throw new WebApplicationException(e, 500);
+		}		
+	}
+
+	private NestedList<Object> fetchTops(String type, long from, long to, String criteria, int size) {
+		NestedList<Object> res = new NestedList<Object>(); 
+		List<Map<String, Object>> resultList = getJdbcTemplate().queryForList(
+				"select `type`, `name`, `title`, sum(`sum`) as viewers, sum(`totalDuration`) as duration from stats_view where type = ? and toTS > ? and toTS <= ? " +
+				" group by type, name, title order by "+criteria+" desc limit 1, ?",
+				type, from, to, size);
+		for (Map<String, Object> row : resultList) {
+			ListResult<Object> rec = new ListResult<Object>();
+			for (String col : StatsDataProcessor.topViewColumns) {					
+				rec.addElement(row.get(col));
+			}
+			res.addRow(rec);
+		}
+		return res;
 	}
 
 	private NestedList<Object> fetch(String type, long from, long to) {
@@ -102,32 +135,6 @@ public class StatsDataProvider {
 		return res;
 	}
 	
-//	@GET
-//	@Path("/columns")
-//	public ListResult<String> getColumnNames(){
-//		logger.debug("Returning column metadata.");
-//		try{
-//			return new ListResult<String>(Arrays.asList(StatsDataCacheLoader.columns));
-//		}catch(Exception e){ 
-//			logger.error("Failed to retrieve column metadata for statistics.");
-//			throw new WebApplicationException(e, 500);
-//		}
-//	}
-//
-//	@GET
-//	@Path("/nextpage")
-//	public NestedList<Object> getPage(@QueryParam("numOfPages") int numOfPages) {
-//		logger.debug("Returning {} page(s) of statistics.", numOfPages);
-//		try {
-//			Collection<List<Object>> pages = statsDataLoader.getNextPages(numOfPages);
-//			ArrayList<List<Object>> pagesAsList = new ArrayList<List<Object>>(pages);
-//			return new NestedList<Object>(pagesAsList);
-//		} catch (Exception e) {
-//			logger.error("Failed to retrieve the next {} record pages. {}", numOfPages, e.getMessage());
-//			throw new WebApplicationException(e, 500);
-//		}		
-//	}
-
 	public JdbcTemplate getJdbcTemplate() {
 		if(jdbcTemplate == null){
 			jdbcTemplate = new JdbcTemplate(dataSource);

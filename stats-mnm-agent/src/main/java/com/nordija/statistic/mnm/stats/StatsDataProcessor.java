@@ -5,6 +5,8 @@ import org.springframework.context.Lifecycle;
 public interface StatsDataProcessor extends Lifecycle {
 	public static String[] viewColumns = {
 		"type", "name", "title", "sum", "minDuration", "maxDuration", "totalDuration", "fromTS", "toTS"};
+	public static String[] topViewColumns = {
+		"type", "name", "title", "viewers", "duration"};
 	public static String[] events = {
 		"adAdtion", "DvrUsage", "LiveUsage", "movieRent", "SelfCareSUBSCRIBE", "shopLoaded", 
 		"STARTOVERUsage", "TIMESHIFTUsage", "VodUsageMOVIE", "VodUsageTRAILER", 
