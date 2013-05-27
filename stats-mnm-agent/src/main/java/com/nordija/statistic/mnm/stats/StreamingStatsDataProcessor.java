@@ -34,7 +34,7 @@ public class StreamingStatsDataProcessor implements StatsDataProcessor {
 	private static Logger logger = LoggerFactory.getLogger(StreamingStatsDataProcessor.class);
 
 	// cacheView value is a list of cusRef, name, type, firstDeliveredTS, lastDeliveredTS, duration, devModel and eventually extra-fields like title".
-	static ConcurrentMap<String, ConcurrentMap<StatsViewKey, NavigableSet<List<Object>>>> viewsMap;
+	static ConcurrentMap<String, ConcurrentMap<StatsViewKey, NavigableSet<StatsView>>> viewsMap;
 	
 	@Autowired @Qualifier("streamingStatsLoaderDataSource")
 	private DataSource streamingStatsLoaderDataSource;
@@ -145,45 +145,45 @@ public class StreamingStatsDataProcessor implements StatsDataProcessor {
 	}
 
 	private void saveViewData() {
-		List<Object[]> batch = new ArrayList<Object[]>();
+		List<StatsView> batch = new ArrayList<StatsView>();
 		List<StatsViewKey> persisted = new ArrayList<StatsViewKey>();
-		for (Entry<String, ConcurrentMap<StatsViewKey, NavigableSet<List<Object>>>> viewMap : viewsMap.entrySet()) {
-			ConcurrentMap<StatsViewKey, NavigableSet<List<Object>>> view = viewMap.getValue();
-			for (Entry<StatsViewKey, NavigableSet<List<Object>>> entry : view.entrySet()) {
-				NavigableSet<List<Object>> recs = entry.getValue();
-				for (List<Object> rec : recs) {					
+		for (Entry<String, ConcurrentMap<StatsViewKey, NavigableSet<StatsView>>> viewMap : viewsMap.entrySet()) {
+			ConcurrentMap<StatsViewKey, NavigableSet<StatsView>> view = viewMap.getValue();
+			for (Entry<StatsViewKey, NavigableSet<StatsView>> entry : view.entrySet()) {
+				NavigableSet<StatsView> recs = entry.getValue();
+				for (StatsView rec : recs) {					
 					if(isAggregationCompleted(rec)){
 						persisted.add(entry.getKey());
-						batch.add(rec.subList(0, viewCompletedIdx).toArray());
+						batch.add(rec);
 					}
 				}
 			}
 		}
 		if(!batch.isEmpty()){
-			int[] ret = jdbcViewPersister.batchUpdate(
-					"insert into stats_view (type, name, title, sum, minDuration, maxDuration, totalDuration, fromTS, toTS) " +
-					"values (?, ?, ?, ?, ?, ?, ?, ?, ?)"
-					, batch);
-			if(ret.length < batch.size()){
+			int[][] ret = jdbcViewPersister.batchUpdate(
+					"insert into stats_view (type, name, title, viewers, duration, fromTS, toTS) " +
+					"values (?, ?, ?, ?, ?, ?, ?)"
+					, batch, batch.size(), new StatsViewBatchStatementSetter());
+			if(ret[0].length < batch.size()){
 				logger.warn("Only {} out of {} number of records could be inserted into stats_view table.", ret, batch.size());
 			}
 			if(logger.isDebugEnabled()){
-				logger.debug("Persisted {} view records in the stats_view table.", ret.length);
+				logger.debug("Persisted {} view records in the stats_view table.", ret[0].length);
 			}
 		}	
 		// Empty all the views for those entries which are saved into db.
-		for (Entry<String, ConcurrentMap<StatsViewKey, NavigableSet<List<Object>>>> viewMap : viewsMap.entrySet()) {
-			ConcurrentMap<StatsViewKey, NavigableSet<List<Object>>> view = viewMap.getValue();
+		for (Entry<String, ConcurrentMap<StatsViewKey, NavigableSet<StatsView>>> viewMap : viewsMap.entrySet()) {
+			ConcurrentMap<StatsViewKey, NavigableSet<StatsView>> view = viewMap.getValue();
 			for (StatsViewKey svk : persisted) {
-				NavigableSet<List<Object>> recs = view.get(svk);
+				NavigableSet<StatsView> recs = view.get(svk);
 				if(!CollectionUtils.isEmpty(recs)){
 					// Only the first entry in the record set may not be persisted/completed				
-					List<Object> first = recs.first();
+					StatsView first = recs.first();
 					if(isAggregationCompleted(first)){
 						recs.clear();
 						view.remove(svk);
 					}else{
-						NavigableSet<List<Object>> tail = recs.tailSet(first, false);
+						NavigableSet<StatsView> tail = recs.tailSet(first, false);
 						if(!CollectionUtils.isEmpty(tail)){
 							tail.clear();
 						}
@@ -198,7 +198,7 @@ public class StreamingStatsDataProcessor implements StatsDataProcessor {
 	@SuppressWarnings("unchecked")
 	private void updateViews(List<Object> row){
 		String type = (String)row.get(8);
-		ConcurrentMap<StatsViewKey, NavigableSet<List<Object>>> cacheView = viewsMap.get(type);
+		ConcurrentMap<StatsViewKey, NavigableSet<StatsView>> cacheView = viewsMap.get(type);
 
 		if(cacheView == null){
 			logger.warn("No view found for event of type = {}.", type);
@@ -219,14 +219,14 @@ public class StreamingStatsDataProcessor implements StatsDataProcessor {
 		long duration = row.get(durationIdx) == null ? 0L : (Long)row.get(durationIdx);
 		
 		StatsViewKey viewKey = new StatsViewKey((String)row.get(typeIdx), (String)row.get(nameIdx), title);
-		List<Object> rec = null;
-		NavigableSet<List<Object>> recs = cacheView.get(viewKey);
+		StatsView rec = null;
+		NavigableSet<StatsView> recs = cacheView.get(viewKey);
 		if(CollectionUtils.isEmpty(recs)){
-			TreeSet<List<Object>> records = new TreeSet<List<Object>>(new Comparator<List<Object>>() {
+			TreeSet<StatsView> records = new TreeSet<StatsView>(new Comparator<StatsView>() {
 				@Override
-				public int compare(List<Object> rec1, List<Object> rec2) {
-					Long first = (Long)rec1.get(viewToTSIdx) - (Long)rec1.get(viewFromTSIdx);
-					Long second = (Long)rec2.get(viewToTSIdx) - (Long)rec2.get(viewFromTSIdx);
+				public int compare(StatsView rec1, StatsView rec2) {
+					Long first = rec1.getToTS() - rec1.getFromTS();
+					Long second = rec2.getToTS() - rec2.getFromTS();
 					return first.compareTo(second);
 				}
 			});
@@ -238,37 +238,29 @@ public class StreamingStatsDataProcessor implements StatsDataProcessor {
 		// We have to make sure that no records exist in cache, whose viewToTSIdx is larger than timeslotSecs (5 minutes)
 		// because we cannot rely on persisting every 5 minutes.
 		if(isRowTooFarAhead(row, rec)){
-			rec.set(viewCompletedIdx, new Boolean(true));
+			rec.setCompleted(true);
 		}
 		if(rec == null || isAggregationCompleted(rec)){
-			rec = new ArrayList<Object>();
-			rec.add(viewKey.type);
-			rec.add(viewKey.name);
-			rec.add(title);
-			rec.add(1L);	// sum
-			rec.add(duration);	// minDuration
-			rec.add(duration);	// maxDuration
-			rec.add(duration);	// duration
-			rec.add(row.get(deliveredTSIdx));		// from
-			rec.add(row.get(deliveredTSIdx));		// to
-			rec.add(new Boolean(false));
+			rec = new StatsView(viewKey.type, viewKey.name, title);
+			rec.setViewers(1L);
+			rec.setDuraion(duration);
+			rec.setFromTS((Long)row.get(deliveredTSIdx));
+			rec.setToTS((Long)row.get(deliveredTSIdx));
 			cacheView.get(viewKey).add(rec);
 		}else{
-			rec.set(viewSumIdx, ((Long)rec.get(viewSumIdx))+1);
-			rec.set(viewMinDurationIdx, Math.min((Long)rec.get(viewMinDurationIdx), duration));
-			rec.set(viewMaxDurationIdx, Math.max((Long)rec.get(viewMaxDurationIdx), duration));
-			rec.set(viewTotalDurationIdx, ((Long)rec.get(viewTotalDurationIdx))+duration);	// add up the duration
-			rec.set(viewToTSIdx, row.get(deliveredTSIdx));	// to
+			rec.accumulateViewers(1L);
+			rec.accumulateDuration(duration);
+			rec.setToTS((Long)row.get(deliveredTSIdx));
 		}
 	}
 		
 	private final long timeslotMillis = timeslotSecs*1000;
-	private boolean isAggregationCompleted(List<Object> rec){
-		return (Boolean)rec.get(viewCompletedIdx) || (Long)rec.get(viewToTSIdx) - (Long)rec.get(viewFromTSIdx) >= timeslotMillis;
+	private boolean isAggregationCompleted(StatsView rec){
+		return rec.isCompleted() || rec.getToTS() - rec.getFromTS() >= timeslotMillis;
 	}
 	private final long tooFarAheadMillis = timeslotMillis+(timeslotMillis/5);
-	private boolean isRowTooFarAhead(List<Object> row, List<Object> rec){		
-		return row != null && rec != null && (Long)row.get(deliveredTSIdx) - (Long)rec.get(viewToTSIdx) >= tooFarAheadMillis;
+	private boolean isRowTooFarAhead(List<Object> row, StatsView rec){		
+		return row != null && rec != null && (Long)row.get(deliveredTSIdx) - rec.getToTS() >= tooFarAheadMillis;
 	}
 
 	private String getSql(){
@@ -286,9 +278,9 @@ public class StreamingStatsDataProcessor implements StatsDataProcessor {
 		dataStreamerThread = new Thread(new Runnable() {			
 			@Override
 			public void run() {
-				viewsMap = new ConcurrentHashMap<String, ConcurrentMap<StatsViewKey, NavigableSet<List<Object>>>>();
+				viewsMap = new ConcurrentHashMap<String, ConcurrentMap<StatsViewKey, NavigableSet<StatsView>>>();
 				for (String event : events) {					
-					viewsMap.put(event, new ConcurrentHashMap<StatsViewKey, NavigableSet<List<Object>>>());
+					viewsMap.put(event, new ConcurrentHashMap<StatsViewKey, NavigableSet<StatsView>>());
 				}
 				
 				jdbcViewPersister = new JdbcTemplate(dataSource);

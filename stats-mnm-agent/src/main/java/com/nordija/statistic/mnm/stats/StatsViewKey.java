@@ -1,9 +1,9 @@
 package com.nordija.statistic.mnm.stats;
 
 public class StatsViewKey implements Comparable<StatsViewKey> {
-	String type;
-	String name;
-	String title;
+	public String type;
+	public String name;
+	public String title;
 	
 	public StatsViewKey() {
 		super();
