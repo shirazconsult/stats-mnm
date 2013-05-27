@@ -250,7 +250,15 @@ public class StreamingStatsDataProcessor implements StatsDataProcessor {
 		}else{
 			rec.accumulateViewers(1L);
 			rec.accumulateDuration(duration);
-			rec.setToTS((Long)row.get(deliveredTSIdx));
+			Long toTS = (Long)row.get(deliveredTSIdx);
+			// try to remedy the timestamps in situations where the events are not persisted in the statistic
+			// table in the order they are delivered to the ActiveMQ broker.
+			if(toTS < rec.getFromTS()){
+				rec.setToTS(rec.getFromTS());
+				rec.setFromTS(toTS);
+			}else{
+				rec.setToTS(toTS);
+			}
 		}
 	}
 		
