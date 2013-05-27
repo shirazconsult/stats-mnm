@@ -3,18 +3,11 @@ package com.nordija.statistic.mnm.agent;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.List;
 
 import org.apache.commons.collections.CollectionUtils;
-import org.joda.time.chrono.GregorianChronology;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.batch.core.Job;
-import org.springframework.batch.core.JobParameter;
-import org.springframework.batch.core.JobParameters;
-import org.springframework.batch.core.JobParametersBuilder;
-import org.springframework.batch.core.launch.support.SimpleJobLauncher;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
 
@@ -205,15 +198,6 @@ public class MonitorAgent {
 				startRestServices(context, noDaemon);
 			}
 		}
-    	SimpleJobLauncher jobLauncher = context.getBean(SimpleJobLauncher.class);
-    	Job job = context.getBean("accumulateHourlyJob", Job.class);
-    	GregorianChronology gc = GregorianChronology.getInstance();
-    	long feb12At17 = gc.getDateTimeMillis(2013, 2, 4, 12, 0, 0, 0);
-    	long feb12At18 = gc.getDateTimeMillis(2013, 2, 4, 13, 0, 0, 0);
-    	JobParametersBuilder jpb = new JobParametersBuilder().
-    			addLong("from", feb12At17).addLong("to", feb12At18).
-    			addString("name", "TestStatsJob").addString("accumulationUnit", "HOURLY").addDate("date", new Date());
-    	jobLauncher.run(job, jpb.toJobParameters());
     }
 
     static public void shutdown(ApplicationContext context) {

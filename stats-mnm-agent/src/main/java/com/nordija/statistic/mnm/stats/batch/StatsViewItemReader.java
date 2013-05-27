@@ -2,10 +2,8 @@ package com.nordija.statistic.mnm.stats.batch;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.batch.core.ExitStatus;
 import org.springframework.batch.core.JobParameters;
 import org.springframework.batch.core.StepExecution;
-import org.springframework.batch.core.annotation.AfterStep;
 import org.springframework.batch.core.annotation.BeforeStep;
 import org.springframework.batch.item.database.JdbcCursorItemReader;
 import org.springframework.context.annotation.Scope;
@@ -30,12 +28,6 @@ public class StatsViewItemReader extends JdbcCursorItemReader<StatsView> {
 				toString();
 		setSql(sql);
 
-		logger.info("Using sql: "+sql);
+		logger.info("Using sql: {}", sql);
 	}
-
-	@AfterStep
-    public ExitStatus afterStep(StepExecution stepExecution){
-    	return ExitStatus.COMPLETED;
-    }
-	
 }

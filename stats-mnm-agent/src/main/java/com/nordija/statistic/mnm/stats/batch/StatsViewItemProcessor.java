@@ -27,7 +27,7 @@ public class StatsViewItemProcessor implements ItemProcessor<StatsView, List<Sta
 
 	@OnProcessError
     public void onProcessError(StatsView item, Exception e){
-    	logger.warn("Failed to process stats-view record "+(item == null ? "null" : item.toString()));
+    	logger.error("Failed to process stats-view record {}.", (item == null ? "null" : item.toString()));
     }
     
 	@Override
@@ -36,15 +36,15 @@ public class StatsViewItemProcessor implements ItemProcessor<StatsView, List<Sta
 		StatsView rec = cache.get(svk);
 		if(rec == null){
 			rec = new StatsView(svk.type, svk.name, svk.title);
+			rec.setFromTS(sv.getFromTS());
 			cache.put(svk, rec);
 		}
 		rec.accumulateDuration(sv.getDuraion());
 		rec.accumulateViewers(sv.getViewers());
-		rec.setFromTS(sv.getFromTS());
 		rec.setToTS(sv.getToTS());
 
 		if(sv.isCompleted()){
-			logger.debug("Time to flush cache. cache size="+cache.size());
+			logger.debug("Time to flush cache. cache size={}.", cache.size());
 			return new ArrayList<StatsView>(cache.values());
 		}
 		return null;
