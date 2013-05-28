@@ -164,8 +164,6 @@ public class MonitorAgent {
     
     private static void startStatsDataProcessor(final ApplicationContext context) throws Exception{    	
     	StreamingStatsDataProcessor statsDataProcessor = context.getBean(StreamingStatsDataProcessor.class);
-    	statsDataProcessor.setStartFromId(0);
-    	statsDataProcessor.setTimeslotSecs(300);
     	try{
     		statsDataProcessor.start();
     	}catch(Exception ex){
@@ -248,12 +246,13 @@ public class MonitorAgent {
         }
         logger.info("Monitor services shut down successfully.");
     }
-    
-    
+        
 	private static ClassPathXmlApplicationContext loadContext() throws Exception {
         logger.info("Loading context ....");
         ClassPathXmlApplicationContext context =
-            new ClassPathXmlApplicationContext(new String[] { "classpath*:META-INF/spring/applicationContext.xml" });
+            new ClassPathXmlApplicationContext(new String[] { 
+            		"classpath*:META-INF/spring/applicationContext.xml",
+            		"classpath*:META-INF/spring/applicationContext-batch.xml"});
 
         return context;
     }	

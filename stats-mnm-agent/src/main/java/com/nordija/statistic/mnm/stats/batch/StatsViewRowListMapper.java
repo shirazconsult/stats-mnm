@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 
 import com.nordija.statistic.mnm.stats.StatsView;
 
-@Component
+@Component("statsViewRowListMapper")
 public class StatsViewRowListMapper implements RowMapper<StatsView> {
 	@Override
 	public StatsView mapRow(ResultSet rs, int rowNum)

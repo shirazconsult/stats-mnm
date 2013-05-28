@@ -20,6 +20,7 @@ import javax.sql.DataSource;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang.StringUtils;
 import org.codehaus.jackson.map.ObjectMapper;
+import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,6 +29,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.jdbc.datasource.DataSourceUtils;
 import org.springframework.stereotype.Service;
+
+import com.nordija.statistic.mnm.stats.batch.StatsViewPreparedStatementSetter;
 
 @Service("streamingStatsDataProcessor")
 public class StreamingStatsDataProcessor implements StatsDataProcessor {
@@ -47,14 +50,14 @@ public class StreamingStatsDataProcessor implements StatsDataProcessor {
 	private AtomicBoolean closing = new AtomicBoolean(false);
 	private AtomicLong totalRecords = new AtomicLong();
 	private AtomicLong lastId = new AtomicLong();
-	private long startFromId;
+	private long startFromToTS;
 	private int timeslotSecs = 300;
 	private JdbcTemplate jdbcViewPersister;
+	private JdbcTemplate jdbcStatsLoader;
 	private long lastPersistedTS;
-	
+	private int liveUsageWithNoTitleCount;
+
 	private void loadCache() throws Exception{
-		StreamingResultSetJdbcTemplate jdbcTemplate = new StreamingResultSetJdbcTemplate(streamingStatsLoaderDataSource); 
-		
 		// Guard against too many selects in time of aggregator-inactivity periods
 		long lastRestart = 0;
 		long delayBeforeCursorRestart = 2000;
@@ -76,7 +79,7 @@ public class StreamingStatsDataProcessor implements StatsDataProcessor {
 			if(logger.isDebugEnabled()){
 				logger.debug("Restarting cursor with: {}. Total records read: {}.", sql, totalRecords.get());
 			}
-			streamDBRows(jdbcTemplate, sql);
+			streamDBRows(jdbcStatsLoader, sql);
 					
 		    if(closing.get()){
 		    	break;
@@ -124,6 +127,10 @@ public class StreamingStatsDataProcessor implements StatsDataProcessor {
 				// Persist views 
 				if(count % 5000 == 0 || System.currentTimeMillis() - lastPersistedTS >= timeslotMillis){
 					saveViewData();
+					if(liveUsageWithNoTitleCount > 0){
+						logger.info("Skipping total of {} LiveUsage events, because of lack of title. ", liveUsageWithNoTitleCount);
+					}
+
 					lastPersistedTS = System.currentTimeMillis();
 				}
 				
@@ -163,7 +170,7 @@ public class StreamingStatsDataProcessor implements StatsDataProcessor {
 			int[][] ret = jdbcViewPersister.batchUpdate(
 					"insert into stats_view (type, name, title, viewers, duration, fromTS, toTS) " +
 					"values (?, ?, ?, ?, ?, ?, ?)"
-					, batch, batch.size(), new StatsViewBatchStatementSetter());
+					, batch, batch.size(), new StatsViewPreparedStatementSetter());
 			if(ret[0].length < batch.size()){
 				logger.warn("Only {} out of {} number of records could be inserted into stats_view table.", ret, batch.size());
 			}
@@ -216,6 +223,10 @@ public class StreamingStatsDataProcessor implements StatsDataProcessor {
 		}
 		String title = extra != null ? (String)extra.get("title") : "No title";
 		title = title != null && title.length() > 64 ? title.substring(0, 64) : (title == null ? "No title" : title);
+		if(type.equals("LiveUsage") && title.equals("No title")){
+			liveUsageWithNoTitleCount++;
+			return;
+		}
 		long duration = row.get(durationIdx) == null ? 0L : (Long)row.get(durationIdx);
 		
 		StatsViewKey viewKey = new StatsViewKey((String)row.get(typeIdx), (String)row.get(nameIdx), title);
@@ -254,9 +265,8 @@ public class StreamingStatsDataProcessor implements StatsDataProcessor {
 			// try to remedy the timestamps in situations where the events are not persisted in the statistic
 			// table in the order they are delivered to the ActiveMQ broker.
 			if(toTS < rec.getFromTS()){
-				rec.setToTS(rec.getFromTS());
 				rec.setFromTS(toTS);
-			}else{
+			}else if (toTS > rec.getToTS()){
 				rec.setToTS(toTS);
 			}
 		}
@@ -273,7 +283,7 @@ public class StreamingStatsDataProcessor implements StatsDataProcessor {
 
 	private String getSql(){
 		if(totalRecords.get() == 0){
-			return "select * from statistic where id >= "+startFromId;
+			return "select * from statistic where id > "+startFromToTS;
 		}else{
 			return "select * from statistic where id > "+lastId.get();
 		}
@@ -291,9 +301,13 @@ public class StreamingStatsDataProcessor implements StatsDataProcessor {
 					viewsMap.put(event, new ConcurrentHashMap<StatsViewKey, NavigableSet<StatsView>>());
 				}
 				
+				jdbcStatsLoader = new StreamingResultSetJdbcTemplate(streamingStatsLoaderDataSource); 
 				jdbcViewPersister = new JdbcTemplate(dataSource);
 
 				try {
+					startFromToTS = jdbcStatsLoader.queryForLong("select max(toTS) from stats_view");
+					logger.info("Restarting processing of data from timestamp {}.", new DateTime(startFromToTS));
+					
 					loadCache();
 				} catch (Exception e) {
 					throw new RuntimeException("Failed to load and cache data.", e);
@@ -333,14 +347,5 @@ public class StreamingStatsDataProcessor implements StatsDataProcessor {
         	stmt.setMaxRows(0);
 	        DataSourceUtils.applyTimeout(stmt, getDataSource(), getQueryTimeout());
 	    }
-	}
-
-	public void setStartFromId(long startFromId) {
-		this.startFromId = startFromId;
-	}
-
-	public void setTimeslotSecs(int timeslotSecs) {
-		this.timeslotSecs = Math.min(this.timeslotSecs, timeslotSecs);
-	}
-	
+	}	
 }

@@ -15,10 +15,12 @@ import org.springframework.batch.core.annotation.AfterRead;
 import org.springframework.batch.core.annotation.BeforeStep;
 import org.springframework.batch.core.annotation.OnProcessError;
 import org.springframework.batch.item.ItemProcessor;
+import org.springframework.stereotype.Component;
 
 import com.nordija.statistic.mnm.stats.StatsView;
 import com.nordija.statistic.mnm.stats.StatsViewKey;
 
+@Component("statsViewProcessor")
 public class StatsViewItemProcessor implements ItemProcessor<StatsView, List<StatsView>> {
 	private static Logger logger = LoggerFactory.getLogger(StatsViewItemProcessor.class);
 	
@@ -53,7 +55,7 @@ public class StatsViewItemProcessor implements ItemProcessor<StatsView, List<Sta
 	private StatsView lastRecord;
 	@AfterRead
 	public void afterRead(StatsView item){
-		if(item == null){
+		if(item == null && lastRecord != null){
 			lastRecord.setCompleted(true);
 		}else{
 			lastRecord = item;

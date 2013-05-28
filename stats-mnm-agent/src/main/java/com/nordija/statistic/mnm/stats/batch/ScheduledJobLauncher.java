@@ -17,10 +17,7 @@ import org.springframework.batch.core.JobParametersBuilder;
 import org.springframework.batch.core.explore.JobExplorer;
 import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
 
-@Component("scheduledJobLauncher")
 public class ScheduledJobLauncher {
 	final static private Logger logger = LoggerFactory.getLogger(ScheduledJobLauncher.class);
 	
@@ -28,13 +25,15 @@ public class ScheduledJobLauncher {
 	@Autowired private JobLauncher jobLauncher;
 	@Autowired private JobExplorer jobExplorer;
 	
-	@Scheduled(fixedRate=DateTimeConstants.MILLIS_PER_HOUR)
 	public void launch(){
 		JobParameters jobParams = getNextJobParameters();
+		long from = jobParams.getLong("from");
+		long to = jobParams.getLong("to");
+		
 		logger.info("Launching {} with parameters: {}", hourlyJob.getName(), jobParams.toString());
-		if(jobParams.getLong("to") - jobParams.getLong("from") < DateTimeConstants.MILLIS_PER_HOUR){
-			logger.info("Skipping launch of {}, since at least one hour must be elapsed since last time the job was launched. from: {}, to: {}", 
-					new Object[]{hourlyJob.getName(), jobParams.getLong("from"), jobParams.getLong("to")});
+		if(to - from < DateTimeConstants.MILLIS_PER_HOUR){
+			logger.info("Skipping launch of {}, since at least one hour must be elapsed since the last launched time: {} - {}", 
+					new Object[]{hourlyJob.getName(), new DateTime(from), new DateTime(to)});
 			return;
 		}
     	try {
@@ -48,13 +47,8 @@ public class ScheduledJobLauncher {
 		List<JobInstance> jobInstances = jobExplorer.getJobInstances(hourlyJob.getName(), 0, 1);
 		
 		if(CollectionUtils.isEmpty(jobInstances)){
-	    	long epoch = GregorianChronology.getInstance().getDateTimeMillis(
-	    			1970, 
-	    			1, 
-	    			1, 
-	    			1, 0, 0, 0);
 	    	return new JobParametersBuilder().
-	    			addLong("from", epoch).
+	    			addLong("from", GregorianChronology.getInstance().getDateTimeMillis(1970, 1, 1, 1, 0, 0, 0)).
 	    			addLong("to", getNextToInMillis()).
 	    			addString("name", hourlyJob.getName()).
 	    			toJobParameters();
@@ -69,9 +63,8 @@ public class ScheduledJobLauncher {
 		}
 		
 		JobParameters lastJobParams = lastJobInst.getJobParameters();
-		long from = lastJobParams.getLong("to");
     	return new JobParametersBuilder().
-    			addLong("from", from).
+    			addLong("from", lastJobParams.getLong("to")).
     			addLong("to", getNextToInMillis()).
     			addString("name", hourlyJob.getName()).
     			toJobParameters();		
@@ -86,4 +79,5 @@ public class ScheduledJobLauncher {
     			now.hourOfDay().get(), 
     			0, 0, 0);
 	}
+	
 }

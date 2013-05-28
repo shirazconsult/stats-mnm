@@ -2,6 +2,7 @@
 <beans xmlns="http://www.springframework.org/schema/beans"
 	xmlns:aop="http://www.springframework.org/schema/aop" xmlns:tx="http://www.springframework.org/schema/tx"
 	xmlns:p="http://www.springframework.org/schema/p" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:context="http://www.springframework.org/schema/context"
 	xmlns:util="http://www.springframework.org/schema/util"
 	xmlns:batch="http://www.springframework.org/schema/batch"
 	xmlns:task="http://www.springframework.org/schema/task"
@@ -9,6 +10,7 @@
 			http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
 			http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop.xsd
 			http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx.xsd
+			http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-3.0.xsd
 			http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util.xsd
 			http://www.springframework.org/schema/batch http://www.springframework.org/schema/batch/spring-batch.xsd
 			http://www.springframework.org/schema/task http://www.springframework.org/schema/task/spring-task.xsd">
@@ -63,21 +65,15 @@
 	<bean id="statsViewReader" class="com.nordija.statistic.mnm.stats.batch.StatsViewItemReader">
     	<property name="dataSource" ref="dataSource"/>
     	<property name="sql" value="select * from stats_view"/>
-    	<property name="rowMapper">
-        	<bean class="com.nordija.statistic.mnm.stats.batch.StatsViewRowListMapper"/>
-    	</property>
+    	<property name="rowMapper" ref="statsViewRowListMapper"/>
 	</bean>
-
-	<bean id="statsViewProcessor" class="com.nordija.statistic.mnm.stats.batch.StatsViewItemProcessor"/>
 	
 	<bean id="statsViewWriter"
 		class="com.nordija.statistic.mnm.stats.batch.StatsViewItemWriter">
 		<property name="batchItemWriter">
 			<bean class="org.springframework.batch.item.database.JdbcBatchItemWriter">
 				<property name="assertUpdates" value="true" />
-				<property name="itemPreparedStatementSetter">
-					<bean class="com.nordija.statistic.mnm.stats.batch.StatsViewPreparedStatementSetter" />
-				</property>
+				<property name="itemPreparedStatementSetter" ref="statsViewPreparedStatementSetter"/>
 				<property name="sql"
 					value="insert into stats_view_hourly (type, name, title, viewers, duration, fromTS, toTS) 
 							values(?, ?, ?, ?, ?, ?, ?)" />
@@ -86,14 +82,14 @@
 		</property>
 	</bean>
 
+	<bean id="scheduledJobLauncher" class="com.nordija.statistic.mnm.stats.batch.ScheduledJobLauncher"/>
 	<task:scheduler id="scheduler"/>
-	<task:annotation-driven scheduler="scheduler" />
 
-<!-- 	<task:scheduler id="scheduler" /> -->
-<!-- 	<task:scheduled-tasks scheduler="scheduler"> -->
-<!-- 	<task:scheduled ref="scheduledJobLauncher" -->
-<!--                   method="launch" -->
-<!--                   fixed-rate="1000" /> -->
-<!-- 	</task:scheduled-tasks> -->
+	<task:scheduler id="scheduler" />
+	<task:scheduled-tasks scheduler="scheduler">
+	<task:scheduled ref="scheduledJobLauncher"
+                  method="launch"
+                  fixed-rate="3600000" />
+	</task:scheduled-tasks>
 </beans>
 

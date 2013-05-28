@@ -27,7 +27,6 @@
 	</bean>
  
  	<import resource="datasources.xml" />
- 	<import resource="applicationContext-batch.xml" />
  	
  	<bean id="jacksonMapper" class="org.codehaus.jackson.map.ObjectMapper"/>
  
