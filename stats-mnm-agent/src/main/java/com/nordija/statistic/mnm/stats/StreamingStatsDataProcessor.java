@@ -322,7 +322,9 @@ public class StreamingStatsDataProcessor implements StatsDataProcessor {
 	public void stop() {
 		closing.set(true);
 		try {
-			dataStreamerThread.join();
+			if(isRunning()){
+				dataStreamerThread.join();
+			}
 		} catch (InterruptedException e) {
 			// ignore.
 		}
@@ -330,7 +332,7 @@ public class StreamingStatsDataProcessor implements StatsDataProcessor {
 
 	@Override
 	public boolean isRunning() {
-		return !dataStreamerThread.isAlive();
+		return dataStreamerThread != null && !dataStreamerThread.isAlive();
 	}
 
 	class StreamingResultSetJdbcTemplate extends JdbcTemplate {
