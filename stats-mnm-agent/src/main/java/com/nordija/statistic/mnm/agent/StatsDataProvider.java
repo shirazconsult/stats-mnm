@@ -109,15 +109,14 @@ public class StatsDataProvider {
 			throw new WebApplicationException(e, 500);
 		}		
 	}
-
+	
 	private NestedList<Object> fetchTops(String type, long from, long to, String criteria, int size) {
 		NestedList<Object> res = new NestedList<Object>();
-		String table = (to - from <= DateTimeConstants.MILLIS_PER_HOUR) ? "stats_view" : "stats_view_hourly";
-		String query = "select `type`, `name`, `title`, sum(`viewers`) as viewers, sum(`duration`) as duration from "+table;
 		List<Map<String, Object>> resultList = getJdbcTemplate().queryForList(
-				query + 
+				"select `type`, `name`, `title`, sum(`viewers`) as viewers, sum(`duration`) as duration from "+
+				getTable(from, to) + 
 				" where type = ? and toTS > ? and toTS <= ? " +
-				" group by type, name, title order by "+criteria+" desc limit 1, ?",
+				" group by type, name, title order by "+criteria+" desc limit 0, ?",
 				type, from, to, size);
 		for (Map<String, Object> row : resultList) {
 			ListResult<Object> rec = new ListResult<Object>();
@@ -131,10 +130,9 @@ public class StatsDataProvider {
 
 	private NestedList<Object> fetch(String type, long from, long to) {
 		NestedList<Object> res = new NestedList<Object>(); 
-		String table = (to - from <= DateTimeConstants.MILLIS_PER_HOUR) ? "stats_view" : "stats_view_hourly";
-		String query = "select * from "+table;
 		List<Map<String, Object>> resultList = getJdbcTemplate().queryForList(
-				query + 
+				"select * from " +
+				getTable(from, to) + 
 				" where type = ? and toTS > ? and toTS <= ? order by fromTS, toTS", 
 				type, from, to);
 		for (Map<String, Object> row : resultList) {
@@ -149,10 +147,9 @@ public class StatsDataProvider {
 
 	private NestedList<Object> fetch(long from, long to){
 		NestedList<Object> res = new NestedList<Object>(); 
-		String table = (to - from <= DateTimeConstants.MILLIS_PER_HOUR) ? "stats_view" : "stats_view_hourly";
-		String query = "select * from "+table;		
 		List<Map<String, Object>> resultList = getJdbcTemplate().queryForList(
-				query +
+				"select * from " +
+				getTable(from, to) +
 				" where toTS > ? and toTS <= ? order by fromTS, toTS", 
 				from, to);
 		for (Map<String, Object> row : resultList) {
@@ -170,5 +167,16 @@ public class StatsDataProvider {
 			jdbcTemplate = new JdbcTemplate(dataSource);
 		}
 		return jdbcTemplate;
+	}	
+	
+	private String getTable(long from, long to){
+		long diff = to - from;
+		if(diff <= DateTimeConstants.MILLIS_PER_HOUR){			
+			return "stats_view";
+		}
+		if(diff <= DateTimeConstants.MILLIS_PER_DAY){
+			return "stats_view_hourly";
+		}
+		return "stats_view_daily";
 	}	
 }

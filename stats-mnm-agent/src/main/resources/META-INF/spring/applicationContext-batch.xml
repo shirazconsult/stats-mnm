@@ -51,24 +51,52 @@
 	</bean>
       
 	<batch:job id="hourlyJob" restartable="true">
-    	<batch:step id="step">
+    	<batch:step id="hstep">
         	<batch:tasklet transaction-manager="txManager">
-            	<batch:chunk reader="statsViewReader" processor="statsViewProcessor" writer="statsViewWriter" 
+            	<batch:chunk reader="statsViewHourlyReader" processor="statsViewHourlyProcessor" writer="statsViewHourlyWriter" 
                 	   commit-interval="100"/>
         	</batch:tasklet>
     	</batch:step>
-    	<batch:listeners>
-    		<batch:listener ref="statsViewJobListener"/>
-    	</batch:listeners>
+<!--     	<batch:listeners> -->
+<!--     		<batch:listener ref="statsViewJobListener"/> -->
+<!--     	</batch:listeners> -->
 	</batch:job>
 
-	<bean id="statsViewReader" class="com.nordija.statistic.mnm.stats.batch.StatsViewItemReader">
+	<batch:job id="dailyJob" restartable="true">
+    	<batch:step id="dstep">
+        	<batch:tasklet transaction-manager="txManager">
+            	<batch:chunk reader="statsViewDailyReader" processor="statsViewDailyProcessor" writer="statsViewDailyWriter" 
+                	   commit-interval="100"/>
+        	</batch:tasklet>
+    	</batch:step>
+<!--     	<batch:listeners> -->
+<!--     		<batch:listener ref="statsViewJobListener"/> -->
+<!--     	</batch:listeners> -->
+	</batch:job>
+	
+	<bean id="statsViewHourlyProcessor" class="com.nordija.statistic.mnm.stats.batch.StatsViewItemProcessor">
+		<property name="name" value="Hourly processor"/>
+		<property name="accumulationUnit" value="HOURS"/>
+	</bean>
+
+	<bean id="statsViewDailyProcessor" class="com.nordija.statistic.mnm.stats.batch.StatsViewItemProcessor">
+		<property name="name" value="Daily processor"/>
+		<property name="accumulationUnit" value="DAYS"/>
+	</bean>
+	
+	<bean id="statsViewHourlyReader" class="com.nordija.statistic.mnm.stats.batch.StatsViewItemReader">
     	<property name="dataSource" ref="dataSource"/>
-    	<property name="sql" value="select * from stats_view"/>
+    	<property name="sql" value="select * from stats_view"/> <!-- this is a dummy sql. will be overrided -->
+    	<property name="rowMapper" ref="statsViewRowListMapper"/>
+	</bean>
+
+	<bean id="statsViewDailyReader" class="com.nordija.statistic.mnm.stats.batch.StatsViewItemReader">
+    	<property name="dataSource" ref="dataSource"/>
+    	<property name="sql" value="select * from stats_view"/> <!-- this is a dummy sql. will be overrided -->
     	<property name="rowMapper" ref="statsViewRowListMapper"/>
 	</bean>
 	
-	<bean id="statsViewWriter"
+	<bean id="statsViewHourlyWriter"
 		class="com.nordija.statistic.mnm.stats.batch.StatsViewItemWriter">
 		<property name="batchItemWriter">
 			<bean class="org.springframework.batch.item.database.JdbcBatchItemWriter">
@@ -82,14 +110,39 @@
 		</property>
 	</bean>
 
-	<bean id="scheduledJobLauncher" class="com.nordija.statistic.mnm.stats.batch.ScheduledJobLauncher"/>
+	<bean id="statsViewDailyWriter"
+		class="com.nordija.statistic.mnm.stats.batch.StatsViewItemWriter">
+		<property name="batchItemWriter">
+			<bean class="org.springframework.batch.item.database.JdbcBatchItemWriter">
+				<property name="assertUpdates" value="true" />
+				<property name="itemPreparedStatementSetter" ref="statsViewPreparedStatementSetter"/>
+				<property name="sql"
+					value="insert into stats_view_daily (type, name, title, viewers, duration, fromTS, toTS) 
+							values(?, ?, ?, ?, ?, ?, ?)" />
+				<property name="dataSource" ref="dataSource" />
+			</bean>
+		</property>
+	</bean>
+
+	<bean id="hourlyScheduledJobLauncher" class="com.nordija.statistic.mnm.stats.batch.ScheduledJobLauncher">
+		<property name="job" ref="hourlyJob"/>
+		<property name="scheduleTimeUnit" value="HOURS"/>
+	</bean>
+	<bean id="dailyScheduledJobLauncher" class="com.nordija.statistic.mnm.stats.batch.ScheduledJobLauncher">
+		<property name="job" ref="dailyJob"/>
+		<property name="scheduleTimeUnit" value="DAYS"/>
+	</bean>
+
 	<task:scheduler id="scheduler"/>
 
 	<task:scheduler id="scheduler" />
 	<task:scheduled-tasks scheduler="scheduler">
-	<task:scheduled ref="scheduledJobLauncher"
-                  method="launch"
-                  fixed-rate="3600000" />
+		<task:scheduled ref="hourlyScheduledJobLauncher"
+        	          	method="launch"
+            	      	fixed-rate="3600000" />  <!-- One hour from start of the previous job -->
+        <task:scheduled ref="dailyScheduledJobLauncher" 
+        				method="launch"
+        				fixed-rate="86400000" /> <!-- 24 hours from start of the previous job -->
 	</task:scheduled-tasks>
 </beans>
 
