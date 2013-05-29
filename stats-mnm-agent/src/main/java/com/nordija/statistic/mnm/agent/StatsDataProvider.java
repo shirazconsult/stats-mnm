@@ -112,7 +112,7 @@ public class StatsDataProvider {
 
 	private NestedList<Object> fetchTops(String type, long from, long to, String criteria, int size) {
 		NestedList<Object> res = new NestedList<Object>();
-		String table = (to - from < DateTimeConstants.MILLIS_PER_HOUR) ? "stats_view" : "stats_view_hourly";
+		String table = (to - from <= DateTimeConstants.MILLIS_PER_HOUR) ? "stats_view" : "stats_view_hourly";
 		String query = "select `type`, `name`, `title`, sum(`viewers`) as viewers, sum(`duration`) as duration from "+table;
 		List<Map<String, Object>> resultList = getJdbcTemplate().queryForList(
 				query + 
@@ -131,8 +131,12 @@ public class StatsDataProvider {
 
 	private NestedList<Object> fetch(String type, long from, long to) {
 		NestedList<Object> res = new NestedList<Object>(); 
+		String table = (to - from <= DateTimeConstants.MILLIS_PER_HOUR) ? "stats_view" : "stats_view_hourly";
+		String query = "select * from "+table;
 		List<Map<String, Object>> resultList = getJdbcTemplate().queryForList(
-				"select * from stats_view where type = ? and toTS > ? and toTS <= ? order by fromTS, toTS", type, from, to);
+				query + 
+				" where type = ? and toTS > ? and toTS <= ? order by fromTS, toTS", 
+				type, from, to);
 		for (Map<String, Object> row : resultList) {
 			ListResult<Object> rec = new ListResult<Object>();
 			for (String col : StatsDataProcessor.viewColumns) {					
@@ -145,8 +149,12 @@ public class StatsDataProvider {
 
 	private NestedList<Object> fetch(long from, long to){
 		NestedList<Object> res = new NestedList<Object>(); 
+		String table = (to - from <= DateTimeConstants.MILLIS_PER_HOUR) ? "stats_view" : "stats_view_hourly";
+		String query = "select * from "+table;		
 		List<Map<String, Object>> resultList = getJdbcTemplate().queryForList(
-				"select * from stats_view where toTS > ? and toTS <= ? order by fromTS, toTS", from, to);
+				query +
+				" where toTS > ? and toTS <= ? order by fromTS, toTS", 
+				from, to);
 		for (Map<String, Object> row : resultList) {
 			ListResult<Object> rec = new ListResult<Object>();
 			for (String col : StatsDataProcessor.viewColumns) {					
