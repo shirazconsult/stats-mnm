@@ -14,6 +14,8 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
 
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -74,6 +76,23 @@ public class StatsDataProvider {
 	}
 
 	@GET
+	@Path("/top/{type}/{from}/{to}")
+	public NestedList<Object> getTopData(
+			@PathParam("type") String type, @PathParam("from") String from, @PathParam("to") String to,
+			@QueryParam("criteria") String criteria, @QueryParam("size") int size) {
+		DateTime fromDate, toDate;
+		try{
+			fromDate = DateTime.parse(from);
+			toDate = DateTime.parse(to);
+		}catch(Exception e){
+			String err = "Not a valid date specification. Must comply with ISO8601 specification.";
+			logger.error(err);
+			throw new WebApplicationException(new IllegalArgumentException(err), 500);
+		}
+		return getTopViewPage(type, fromDate.getMillis(), toDate.getMillis(), criteria, size);
+	}
+		
+	@GET
 	@Path("/views/top/{type}/{from}/{to}")
 	public NestedList<Object> getTopViewPage(
 			@PathParam("type") String type, @PathParam("from") long from, @PathParam("to") long to,
@@ -92,9 +111,12 @@ public class StatsDataProvider {
 	}
 
 	private NestedList<Object> fetchTops(String type, long from, long to, String criteria, int size) {
-		NestedList<Object> res = new NestedList<Object>(); 
+		NestedList<Object> res = new NestedList<Object>();
+		String table = (to - from < DateTimeConstants.MILLIS_PER_HOUR) ? "stats_view" : "stats_view_hourly";
+		String query = "select `type`, `name`, `title`, sum(`viewers`) as viewers, sum(`duration`) as duration from "+table;
 		List<Map<String, Object>> resultList = getJdbcTemplate().queryForList(
-				"select `type`, `name`, `title`, sum(`sum`) as viewers, sum(`totalDuration`) as duration from stats_view where type = ? and toTS > ? and toTS <= ? " +
+				query + 
+				" where type = ? and toTS > ? and toTS <= ? " +
 				" group by type, name, title order by "+criteria+" desc limit 1, ?",
 				type, from, to, size);
 		for (Map<String, Object> row : resultList) {
@@ -140,6 +162,5 @@ public class StatsDataProvider {
 			jdbcTemplate = new JdbcTemplate(dataSource);
 		}
 		return jdbcTemplate;
-	}
-	
+	}	
 }
