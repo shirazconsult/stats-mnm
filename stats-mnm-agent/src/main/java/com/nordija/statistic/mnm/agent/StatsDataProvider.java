@@ -10,10 +10,10 @@ import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
 
+import org.javatuples.Triplet;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeConstants;
 import org.slf4j.Logger;
@@ -34,7 +34,6 @@ import com.nordija.statistic.mnm.stats.StatsDataProcessor;
 public class StatsDataProvider {
 	private static final Logger logger = LoggerFactory.getLogger(StatsDataProvider.class);
 	
-//	@Autowired @Qualifier("streamingStatsDataCacheLoader") private StatsDataLoader statsDataLoader;
 	@Autowired @Qualifier("dataSource") private DataSource dataSource;
 	
 	private JdbcTemplate jdbcTemplate;
@@ -52,8 +51,10 @@ public class StatsDataProvider {
 	}
 
 	@GET
-	@Path("/views/{from}/{to}")
-	public NestedList<Object> getViewPage(@PathParam("from") long from, @PathParam("to") long to) {
+	@Path("/viewpage/{from}/{to}")
+	public NestedList<Object> getViewPage(
+			@PathParam("from") long from, 
+			@PathParam("to") long to) {
 		logger.debug("Returning statistics view rows from {} to {}.", from, to);
 		try {
 			return fetch(from, to);
@@ -64,8 +65,28 @@ public class StatsDataProvider {
 	}
 
 	@GET
-	@Path("/views/{type}/{from}/{to}")
-	public NestedList<Object> getViewPage(@PathParam("type") String type, @PathParam("from") long from, @PathParam("to") long to) {
+	@Path("/view/{from}/{to}")
+	public NestedList<Object> getViewPage(
+			@PathParam("from") String from, 
+			@PathParam("to") String to) {
+		DateTime fromDate, toDate;
+		try{
+			fromDate = DateTime.parse(from);
+			toDate = DateTime.parse(to);
+		}catch(Exception e){
+			String err = "Not a valid date specification. Must comply with ISO8601 specification.";
+			logger.error(err);
+			throw new WebApplicationException(new IllegalArgumentException(err), 500);
+		}
+		return getViewPage(fromDate.getMillis(), toDate.getMillis());
+	}
+
+	@GET
+	@Path("/viewpage/{type}/{from}/{to}")
+	public NestedList<Object> getViewPage(
+			@PathParam("type") String type, 
+			@PathParam("from") long from, 
+			@PathParam("to") long to) {
 		logger.debug("Returning statistics view rows from {} to {} for {}.", new Object[]{from, to, type});
 		try {
 			return fetch(type, from, to);
@@ -76,10 +97,11 @@ public class StatsDataProvider {
 	}
 
 	@GET
-	@Path("/top/{type}/{from}/{to}")
-	public NestedList<Object> getTopData(
-			@PathParam("type") String type, @PathParam("from") String from, @PathParam("to") String to,
-			@QueryParam("criteria") String criteria, @QueryParam("size") int size) {
+	@Path("/view/{type}/{from}/{to}")
+	public NestedList<Object> getViewPage(
+			@PathParam("type") String type, 
+			@PathParam("from") String from, 
+			@PathParam("to") String to) {
 		DateTime fromDate, toDate;
 		try{
 			fromDate = DateTime.parse(from);
@@ -89,35 +111,55 @@ public class StatsDataProvider {
 			logger.error(err);
 			throw new WebApplicationException(new IllegalArgumentException(err), 500);
 		}
-		return getTopViewPage(type, fromDate.getMillis(), toDate.getMillis(), criteria, size);
+		return getViewPage(type, fromDate.getMillis(), toDate.getMillis());		
 	}
-		
+	
 	@GET
-	@Path("/views/top/{type}/{from}/{to}")
-	public NestedList<Object> getTopViewPage(
-			@PathParam("type") String type, @PathParam("from") long from, @PathParam("to") long to,
-			@QueryParam("criteria") String criteria, @QueryParam("size") int size) {
-		logger.debug("Returning statistics view rows from {} to {} for {}.", new Object[]{from, to, type});
+	@Path("/viewpage/{type}/{from}/{to}/{options}")
+	public NestedList<Object> getViewPage(
+			@PathParam("type") String type, 
+			@PathParam("from") long from, 
+			@PathParam("to") long to,
+			@PathParam("options") String options) {
+		logger.debug("Returning statistics view rows from {} to {} for {} with options {}.", new Object[]{from, to, type, options});
 		try {
-			if(criteria != null && criteria.equalsIgnoreCase("duration")){
-				return fetchTops(type, from, to, "duration", size);
-			}else{  
-				return fetchTops(type, from, to, "viewers", size);
-			}
+			return fetch(type, from, to, extractOptions(options));
 		} catch (Exception e) {
 			logger.error("Failed to retrieve records for date interval {} - {}. Reason {}", new Object[]{from, to, e.getMessage()});
 			throw new WebApplicationException(e, 500);
 		}		
 	}
+
+	@GET
+	@Path("/view/{type}/{from}/{to}/{options}")
+	public NestedList<Object> getViewPage(
+			@PathParam("type") String type, 
+			@PathParam("from") String from, 
+			@PathParam("to") String to,
+			@PathParam("options") String options) {
+		DateTime fromDate, toDate;
+		try{
+			fromDate = DateTime.parse(from);
+			toDate = DateTime.parse(to);
+		}catch(Exception e){
+			String err = "Not a valid date specification. Must comply with ISO8601 specification.";
+			logger.error(err);
+			throw new WebApplicationException(new IllegalArgumentException(err), 500);
+		}
+		return getViewPage(type, fromDate.getMillis(), toDate.getMillis(), options);
+	}
 	
-	private NestedList<Object> fetchTops(String type, long from, long to, String criteria, int size) {
+	private NestedList<Object> fetch(String type, long from, long to, Triplet<String, String, Integer> options) {
 		NestedList<Object> res = new NestedList<Object>();
+		StringBuilder q = new StringBuilder("select `type`, `name`, `title`, sum(`viewers`) as viewers, sum(`duration`) as duration from ").
+				append(getTable(from, to)).
+				append(" where type = ? and toTS > ? and toTS <= ?  group by type, name, title order by ").
+				append(options.getValue0()).append(" ").
+				append(options.getValue1()).
+				append(" limit 0, ?");
 		List<Map<String, Object>> resultList = getJdbcTemplate().queryForList(
-				"select `type`, `name`, `title`, sum(`viewers`) as viewers, sum(`duration`) as duration from "+
-				getTable(from, to) + 
-				" where type = ? and toTS > ? and toTS <= ? " +
-				" group by type, name, title order by "+criteria+" desc limit 0, ?",
-				type, from, to, size);
+				q.toString(),
+				type, from, to, options.getValue2());
 		for (Map<String, Object> row : resultList) {
 			ListResult<Object> rec = new ListResult<Object>();
 			for (String col : StatsDataProcessor.topViewColumns) {					
@@ -178,5 +220,22 @@ public class StatsDataProvider {
 			return "stats_view_hourly";
 		}
 		return "stats_view_daily";
+	}	
+	
+	private Triplet<String, String, Integer> extractOptions(String options){
+		Triplet<String, String, Integer> opts = new Triplet<String, String, Integer>("viewers", "desc", 10);
+		if(options != null){
+			String[] os = options.split(",");
+			for (String st : os){
+				if(st.equalsIgnoreCase("duration")){
+					opts = opts.setAt0("duration");
+				}else if(st.equalsIgnoreCase("low")){
+					opts = opts.setAt1("asc");
+				}else if(st.matches("[1-9][0-9]*")){
+					opts = opts.setAt2(Integer.valueOf(st));
+				}
+			}
+		}
+		return opts;
 	}	
 }
