@@ -27,11 +27,17 @@ import org.springframework.stereotype.Service;
 import com.nordija.statistic.mnm.rest.model.ListResult;
 import com.nordija.statistic.mnm.rest.model.NestedList;
 import com.nordija.statistic.mnm.stats.StatsDataProcessor;
+import com.wordnik.swagger.annotations.Api;
+import com.wordnik.swagger.annotations.ApiError;
+import com.wordnik.swagger.annotations.ApiErrors;
+import com.wordnik.swagger.annotations.ApiOperation;
+import com.wordnik.swagger.annotations.ApiParam;
 
 @Service("statsDataProvider")
 @Path("/stats")
 @Consumes({ MediaType.APPLICATION_JSON })
 @Produces({ MediaType.APPLICATION_JSON })
+@Api(value = "/stats", description = "Fetch Statistics Data for Visualization")
 public class StatsDataProvider {
 	private static final Logger logger = LoggerFactory.getLogger(StatsDataProvider.class);
 	
@@ -41,6 +47,10 @@ public class StatsDataProvider {
 	
 	@GET
 	@Path("/viewcolumns")
+	@ApiOperation(value = "Fetch column names for data records.", 
+		notes = "Data values in the records are returned in the same order as the column names are returned here.",
+		responseClass = "com.nordija.statistic.mnm.rest.model.ListResult[java.lang.String]")
+    @ApiErrors(value = { @ApiError(code = 500, reason = "If for some reason column metadata cannot be returned.")})	
 	public ListResult<String> getViewColumnNames(){
 		logger.debug("Returning view column metadata.");
 		try{
@@ -53,8 +63,14 @@ public class StatsDataProvider {
 
 	@GET
 	@Path("/viewpage/{from}/{to}")
+	@ApiOperation(value = "Fetch stats data for the period defined by the two unix timestamp parameters.",
+			notes = "This method is typically used to retrieve live data with some sort of paging functionality.",
+			responseClass = "com.nordija.statistic.mnm.rest.model.NestedList[java.lang.Object]")
+    @ApiErrors(value = { @ApiError(code = 500, reason = "Any errors.")})
 	public NestedList<Object> getViewPage(
+			@ApiParam(value="Start time as unix-timestamp", required=true) 
 			@PathParam("from") long from, 
+			@ApiParam(value="End time as unix-timestamp", required=true) 
 			@PathParam("to") long to) {
 		logger.debug("Returning statistics view rows from {} to {}.", from, to);
 		try {
@@ -67,8 +83,15 @@ public class StatsDataProvider {
 
 	@GET
 	@Path("/view/{from}/{to}")
+	@ApiOperation(value = "Fetch stats data for the period defined by the two timestamp parameters.", 
+		notes="The timestamp parameters must comply with the ISO8601 formats (See http://www.w3.org/TR/NOTE-datetime). " +
+				"Ex. '2005-03-25', '2005-03-25T8:00', '2005-03', '2005-W12' etc.",
+		responseClass = "com.nordija.statistic.mnm.rest.model.NestedList[java.lang.Object]")
+    @ApiErrors(value = { @ApiError(code = 500, reason = "If the given parameters don't comply with the ISO8601 standards.")})
 	public NestedList<Object> getViewPage(
+			@ApiParam(value="Start time as ISO8601-string", required=true) 
 			@PathParam("from") String from, 
+			@ApiParam(value="End time as ISO8601-string", required=true) 
 			@PathParam("to") String to) {
 		DateTime fromDate, toDate;
 		try{
@@ -84,9 +107,18 @@ public class StatsDataProvider {
 
 	@GET
 	@Path("/viewpage/{type}/{from}/{to}")
+	@ApiOperation(value = "Fetch stats data for the stats-event type and for the period defined by the two unitx timestamp parameters.", 
+			notes="This method is typically used to retrieve live data with some sort of paging functionality.",
+			responseClass = "com.nordija.statistic.mnm.rest.model.NestedList[java.lang.Object]")
+	@ApiErrors(value = { @ApiError(code = 500, reason = "If the 'type' is not a valid stats-event type or the given timestamp parameters are not valid.")})
 	public NestedList<Object> getViewPage(
+			@ApiParam(value="Statistics event type", allowableValues="'adAdtion', 'DvrUsage', 'LiveUsage', 'movieRent', " + 
+					"'SelfCareSUBSCRIBE', 'shopLoaded', 'STARTOVERUsage', 'TIMESHIFTUsage', 'VodUsageMOVIE', 'VodUsageTRAILER'," + 
+					"'WebTVLogin', 'widgetShow'", required=true) 
 			@PathParam("type") String type, 
+			@ApiParam(value="Start time as unix-timestamp", required=true) 
 			@PathParam("from") long from, 
+			@ApiParam(value="Start time as unix-timestamp", required=true) 
 			@PathParam("to") long to) {
 		logger.debug("Returning statistics view rows from {} to {} for {}.", new Object[]{from, to, type});
 		try {
@@ -99,9 +131,19 @@ public class StatsDataProvider {
 
 	@GET
 	@Path("/view/{type}/{from}/{to}")
+	@ApiOperation(value = "Fetch stats data for the stats-event type and for the period defined by the two timestamp parameters.", 
+		notes="The timestamp parameters must comply with the ISO8601 formats (See http://www.w3.org/TR/NOTE-datetime). " +
+				"Ex. '2005-03-25', '2005-03-25T8:00', '2005-03', '2005-W12' etc.",
+		responseClass = "com.nordija.statistic.mnm.rest.model.NestedList[java.lang.Object]")
+	@ApiErrors(value = { @ApiError(code = 500, reason = "If the 'type' is not a valid stats-event type or the given timestamp parameters don't comply with the ISO8601 standards.")})
 	public NestedList<Object> getViewPage(
+			@ApiParam(value="Statistics event type", allowableValues="'adAdtion', 'DvrUsage', 'LiveUsage', 'movieRent', " + 
+					"'SelfCareSUBSCRIBE', 'shopLoaded', 'STARTOVERUsage', 'TIMESHIFTUsage', 'VodUsageMOVIE', 'VodUsageTRAILER'," + 
+					"'WebTVLogin', 'widgetShow'", required=true) 
 			@PathParam("type") String type, 
+			@ApiParam(value="Start time as ISO8601-string", required=true) 
 			@PathParam("from") String from, 
+			@ApiParam(value="End time as ISO8601-string", required=true) 
 			@PathParam("to") String to) {
 		DateTime fromDate, toDate;
 		try{
@@ -117,10 +159,22 @@ public class StatsDataProvider {
 	
 	@GET
 	@Path("/viewpage/{type}/{from}/{to}/{options}")
+	@ApiOperation(value = "Fetch stats data for the stats-event type and for the period defined by the two unitx timestamp parameters.", 
+			notes="This method is typically used to retrieve live data with some sort of paging functionality.",
+			responseClass = "com.nordija.statistic.mnm.rest.model.NestedList[java.lang.Object]")
+	@ApiErrors(value = { @ApiError(code = 500, reason = "If the 'type' is not a valid stats-event type or the given timestamp parameters are not valid.")})
 	public NestedList<Object> getViewPage(
+			@ApiParam(value="Statistics event type", allowableValues="'adAdtion', 'DvrUsage', 'LiveUsage', 'movieRent', " + 
+					"'SelfCareSUBSCRIBE', 'shopLoaded', 'STARTOVERUsage', 'TIMESHIFTUsage', 'VodUsageMOVIE', 'VodUsageTRAILER'," + 
+					"'WebTVLogin', 'widgetShow'", required=true) 
 			@PathParam("type") String type, 
+			@ApiParam(value="Start time as unix-timestamp", required=true) 			
 			@PathParam("from") long from, 
+			@ApiParam(value="Start time as unix-timestamp", required=true) 
 			@PathParam("to") long to,
+			@ApiParam(value="Options to furthur limit the fetch. It is a comma-separated list of options",
+				allowableValues="[title],[duration|viewers],[top|low],[1-9][0-9]*",
+				required=false) 
 			@PathParam("options") String options) {
 		logger.debug("Returning statistics view rows from {} to {} for {} with options {}.", new Object[]{from, to, type, options});
 		try {
@@ -133,10 +187,22 @@ public class StatsDataProvider {
 
 	@GET
 	@Path("/view/{type}/{from}/{to}/{options}")
+	@ApiOperation(value = "Fetch stats data for the stats-event type and for the period defined by the two timestamp parameters.", 
+			notes="The timestamp parameters must comply with the ISO8601 formats (See http://www.w3.org/TR/NOTE-datetime). " +
+					"Ex. '2005-03-25', '2005-03-25T8:00', '2005-03', '2005-W12' etc.",
+			responseClass = "com.nordija.statistic.mnm.rest.model.NestedList[java.lang.Object]")
 	public NestedList<Object> getViewPage(
+			@ApiParam(value="Statistics event type", allowableValues="'adAdtion', 'DvrUsage', 'LiveUsage', 'movieRent', " + 
+					"'SelfCareSUBSCRIBE', 'shopLoaded', 'STARTOVERUsage', 'TIMESHIFTUsage', 'VodUsageMOVIE', 'VodUsageTRAILER'," + 
+					"'WebTVLogin', 'widgetShow'", required=true) 
 			@PathParam("type") String type, 
+			@ApiParam(value="Start time as ISO8601-string", required=true) 
 			@PathParam("from") String from, 
+			@ApiParam(value="End time as ISO8601-string", required=true) 
 			@PathParam("to") String to,
+			@ApiParam(value="Options to furthur limit the fetch. It is a comma-separated list of options",
+					allowableValues="[title],[duration|viewers],[top|low],[1-9][0-9]*",
+					required=false) 
 			@PathParam("options") String options) {
 		DateTime fromDate, toDate;
 		try{
@@ -152,10 +218,25 @@ public class StatsDataProvider {
 	
 	@GET
 	@Path("/viewbatch/{type}/{from}/{to}/{options}")
+	@ApiOperation(value = "Fetch stats data for the stats-event type and for the period defined by the two timestamp parameters.", 
+			notes="The data is returned as list of lists, devided and grouped into predefined periods." + 
+					"<ul><li>If the specified period is less than a day, then data is grouped hourly</li>" +
+					"<ul><li>If the specified period is less than a week, then data is grouped daily</li>" +
+					"<ul><li>If the specified period is less than a month, then data is grouped weekly</li>" +
+					"<ul><li>Otherwise data is grouped monthly</li></ul>",
+			responseClass = "com.nordija.statistic.mnm.rest.model.ListResult[com.nordija.statistic.mnm.rest.model.NestedList[java.lang.Object]]")
 	public ListResult<NestedList<Object>> getViewPageInBatch(
+			@ApiParam(value="Statistics event type", allowableValues="'adAdtion', 'DvrUsage', 'LiveUsage', 'movieRent', " + 
+					"'SelfCareSUBSCRIBE', 'shopLoaded', 'STARTOVERUsage', 'TIMESHIFTUsage', 'VodUsageMOVIE', 'VodUsageTRAILER'," + 
+					"'WebTVLogin', 'widgetShow'", required=true) 
 			@PathParam("type") String type, 
+			@ApiParam(value="Start time as ISO8601-string", required=true) 
 			@PathParam("from") String from, 
+			@ApiParam(value="End time as ISO8601-string", required=true) 
 			@PathParam("to") String to,
+			@ApiParam(value="Options to furthur limit the fetch. It is a comma-separated list of options",
+					allowableValues="[title],[duration|viewers],[top|low],[1-9][0-9]*",
+					required=false) 
 			@PathParam("options") String options) {
 
 		logger.debug("Returning statistics view rows in batch from {} to {} for {} with options {}.", new Object[]{from, to, type, options});

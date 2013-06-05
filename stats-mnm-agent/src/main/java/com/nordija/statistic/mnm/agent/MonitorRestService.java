@@ -71,7 +71,7 @@ public class MonitorRestService implements Lifecycle {
         
 	    WebAppContext appCtx = new WebAppContext();
 		 
-	    appCtx.setContextPath("/");
+	    appCtx.setContextPath("/statistics");
 	    appCtx.setDescriptor(webappDirLocation + "/WEB-INF/web.xml");
 	    String resource = getClass().getClassLoader().getResource(webappDirLocation).toExternalForm();
 	    appCtx.setResourceBase(resource);

@@ -70,7 +70,10 @@
 		</init-param>
 		<init-param>
 			<param-name>com.sun.jersey.config.property.packages</param-name>
-			<param-value>com.nordija.statistic.mnm.agent;com.nordija.statistic.mnm.rest.jaxb;com.nordija.statistic.mnm.rest.model</param-value>
+			<param-value>com.nordija.statistic.mnm.agent;
+				com.nordija.statistic.mnm.rest.jaxb;
+				com.nordija.statistic.mnm.rest.model;
+				com.your.project;com.wordnik.swagger.jaxrs.listing</param-value>
 		</init-param>
 		<init-param>
             <param-name>com.sun.jersey.api.json.POJOMappingFeature</param-name>
@@ -87,13 +90,13 @@
 		<init-param>
 			<param-name>com.sun.jersey.config.feature.logging.DisableEntitylogging</param-name>
 			<param-value>false</param-value>
-		</init-param>		
+		</init-param>
 		<load-on-startup>1</load-on-startup>
 	</servlet>
 
 	<servlet-mapping>
 		<servlet-name>Monitor Rest</servlet-name>
-		<url-pattern>/statistics/rest/*</url-pattern>
+		<url-pattern>/rest/*</url-pattern>
 	</servlet-mapping>
 
 </web-app>

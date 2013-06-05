@@ -128,7 +128,24 @@
 		<dependency>
 			<groupId>mysql</groupId>
 			<artifactId>mysql-connector-java</artifactId>
-		</dependency>		
+		</dependency>
+		
+ 		<dependency>
+            <groupId>com.wordnik</groupId>
+            <artifactId>swagger-annotations_2.9.1</artifactId>
+            <version>1.2.2</version>
+        </dependency>
+		<dependency>
+    		<groupId>com.wordnik</groupId>
+    		<artifactId>swagger-jaxrs_2.9.1</artifactId>
+    		<version>1.2.2</version>
+    		<scope>compile</scope>
+  		</dependency>
+		<dependency>
+    		<groupId>com.wordnik</groupId>
+			<artifactId>swagger-jersey-jaxrs_2.9.1</artifactId>
+  			<version>1.2.2</version>
+  		</dependency>  		
 	</dependencies>
 
 	<build>
