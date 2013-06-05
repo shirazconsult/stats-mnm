@@ -93,6 +93,11 @@
 		</init-param>
 		<load-on-startup>1</load-on-startup>
 	</servlet>
+	<servlet>
+        <servlet-name>SwaggerBootstrap</servlet-name>
+        <servlet-class>com.nordija.statistic.mnm.agent.swagger.SwaggerBootstrap</servlet-class>
+        <load-on-startup>1</load-on-startup>
+	</servlet>
 
 	<servlet-mapping>
 		<servlet-name>Monitor Rest</servlet-name>

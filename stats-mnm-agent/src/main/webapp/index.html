@@ -20,11 +20,11 @@
 	$(function () {
 		var url =  window.location.href.match(/.*\/statistics/g);
 	    window.swaggerUi = new SwaggerUi({
-                discoveryUrl:url+'/rest/api-docs.json',
+                discoveryUrl:url+'/rest/api-docs',
                 apiKey:"",
                 dom_id:"swagger-ui-container",
                 supportHeaderParams: false,
-                supportedSubmitMethods: [],
+                supportedSubmitMethods: ['get','post'],
                 onComplete: function(swaggerApi, swaggerUi){
                 	if(console) {
                         console.log("Loaded SwaggerUI")

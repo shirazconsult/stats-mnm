@@ -112,9 +112,9 @@ public class StatsDataProvider {
 			responseClass = "com.nordija.statistic.mnm.rest.model.NestedList[java.lang.Object]")
 	@ApiErrors(value = { @ApiError(code = 500, reason = "If the 'type' is not a valid stats-event type or the given timestamp parameters are not valid.")})
 	public NestedList<Object> getViewPage(
-			@ApiParam(value="Statistics event type", allowableValues="'adAdtion', 'DvrUsage', 'LiveUsage', 'movieRent', " + 
-					"'SelfCareSUBSCRIBE', 'shopLoaded', 'STARTOVERUsage', 'TIMESHIFTUsage', 'VodUsageMOVIE', 'VodUsageTRAILER'," + 
-					"'WebTVLogin', 'widgetShow'", required=true) 
+			@ApiParam(value="Statistics event type", allowableValues="adAdtion,DvrUsage,LiveUsage,movieRent," + 
+					"SelfCareSUBSCRIBE,shopLoaded,STARTOVERUsage,TIMESHIFTUsage,VodUsageMOVIE,VodUsageTRAILER," + 
+					"WebTVLogin,widgetShow", required=true) 
 			@PathParam("type") String type, 
 			@ApiParam(value="Start time as unix-timestamp", required=true) 
 			@PathParam("from") long from, 
@@ -137,9 +137,9 @@ public class StatsDataProvider {
 		responseClass = "com.nordija.statistic.mnm.rest.model.NestedList[java.lang.Object]")
 	@ApiErrors(value = { @ApiError(code = 500, reason = "If the 'type' is not a valid stats-event type or the given timestamp parameters don't comply with the ISO8601 standards.")})
 	public NestedList<Object> getViewPage(
-			@ApiParam(value="Statistics event type", allowableValues="'adAdtion', 'DvrUsage', 'LiveUsage', 'movieRent', " + 
-					"'SelfCareSUBSCRIBE', 'shopLoaded', 'STARTOVERUsage', 'TIMESHIFTUsage', 'VodUsageMOVIE', 'VodUsageTRAILER'," + 
-					"'WebTVLogin', 'widgetShow'", required=true) 
+			@ApiParam(value="Statistics event type", allowableValues="adAdtion,DvrUsage,LiveUsage,movieRent," + 
+					"SelfCareSUBSCRIBE,shopLoaded,STARTOVERUsage,TIMESHIFTUsage,VodUsageMOVIE,VodUsageTRAILER," + 
+					"WebTVLogin,widgetShow", required=true) 
 			@PathParam("type") String type, 
 			@ApiParam(value="Start time as ISO8601-string", required=true) 
 			@PathParam("from") String from, 
@@ -160,20 +160,24 @@ public class StatsDataProvider {
 	@GET
 	@Path("/viewpage/{type}/{from}/{to}/{options}")
 	@ApiOperation(value = "Fetch stats data for the stats-event type and for the period defined by the two unitx timestamp parameters.", 
-			notes="This method is typically used to retrieve live data with some sort of paging functionality.",
+			notes="This method is typically used to retrieve live data with some sort of paging functionality.<br/>" +
+					"Allowable values for the 'options' parameter are : [title],[duration|viewers],[top|low],[1-9][0-9]*" +
+					"<ul><li>[title]: If the data-lookup should take the title into account. Specify this if searching data for TV programs.</li>" +
+					"<li>[duration|viewers]: The results should be returned based on the total watched/used or number of viewers. The duration will not apply for all events.</li>" +
+					"<li>[top|low]: Return the most or least used/viewed events</li>" +
+					"<li>[1-9][0-9]*: How many records should be returned</li></ul>",					
 			responseClass = "com.nordija.statistic.mnm.rest.model.NestedList[java.lang.Object]")
 	@ApiErrors(value = { @ApiError(code = 500, reason = "If the 'type' is not a valid stats-event type or the given timestamp parameters are not valid.")})
 	public NestedList<Object> getViewPage(
-			@ApiParam(value="Statistics event type", allowableValues="'adAdtion', 'DvrUsage', 'LiveUsage', 'movieRent', " + 
-					"'SelfCareSUBSCRIBE', 'shopLoaded', 'STARTOVERUsage', 'TIMESHIFTUsage', 'VodUsageMOVIE', 'VodUsageTRAILER'," + 
-					"'WebTVLogin', 'widgetShow'", required=true) 
+			@ApiParam(value="Statistics event type", allowableValues="adAdtion,DvrUsage,LiveUsage,movieRent," + 
+					"SelfCareSUBSCRIBE,shopLoaded,STARTOVERUsage,TIMESHIFTUsage,VodUsageMOVIE,VodUsageTRAILER," + 
+					"WebTVLogin,widgetShow", required=true) 
 			@PathParam("type") String type, 
 			@ApiParam(value="Start time as unix-timestamp", required=true) 			
 			@PathParam("from") long from, 
 			@ApiParam(value="Start time as unix-timestamp", required=true) 
 			@PathParam("to") long to,
 			@ApiParam(value="Options to furthur limit the fetch. It is a comma-separated list of options",
-				allowableValues="[title],[duration|viewers],[top|low],[1-9][0-9]*",
 				required=false) 
 			@PathParam("options") String options) {
 		logger.debug("Returning statistics view rows from {} to {} for {} with options {}.", new Object[]{from, to, type, options});
@@ -189,19 +193,23 @@ public class StatsDataProvider {
 	@Path("/view/{type}/{from}/{to}/{options}")
 	@ApiOperation(value = "Fetch stats data for the stats-event type and for the period defined by the two timestamp parameters.", 
 			notes="The timestamp parameters must comply with the ISO8601 formats (See http://www.w3.org/TR/NOTE-datetime). " +
-					"Ex. '2005-03-25', '2005-03-25T8:00', '2005-03', '2005-W12' etc.",
+					"Ex. '2005-03-25', '2005-03-25T8:00', '2005-03', '2005-W12' etc.<br/>" +
+					"Allowable values for the 'options' parameter are : [title],[duration|viewers],[top|low],[1-9][0-9]*" +
+					"<ul><li>[title]: If the data-lookup should take the title into account. Specify this if searching data for TV programs.</li>" +
+					"<li>[duration|viewers]: The results should be returned based on the total watched/used or number of viewers. The duration will not apply for all events.</li>" +
+					"<li>[top|low]: Return the most or least used/viewed events</li>" +
+					"<li>[1-9][0-9]*: How many records should be returned</li></ul>",					
 			responseClass = "com.nordija.statistic.mnm.rest.model.NestedList[java.lang.Object]")
 	public NestedList<Object> getViewPage(
-			@ApiParam(value="Statistics event type", allowableValues="'adAdtion', 'DvrUsage', 'LiveUsage', 'movieRent', " + 
-					"'SelfCareSUBSCRIBE', 'shopLoaded', 'STARTOVERUsage', 'TIMESHIFTUsage', 'VodUsageMOVIE', 'VodUsageTRAILER'," + 
-					"'WebTVLogin', 'widgetShow'", required=true) 
+			@ApiParam(value="Statistics event type", allowableValues="adAdtion,DvrUsage,LiveUsage,movieRent," + 
+					"SelfCareSUBSCRIBE,shopLoaded,STARTOVERUsage,TIMESHIFTUsage,VodUsageMOVIE,VodUsageTRAILER," + 
+					"WebTVLogin,widgetShow", required=true) 
 			@PathParam("type") String type, 
 			@ApiParam(value="Start time as ISO8601-string", required=true) 
 			@PathParam("from") String from, 
 			@ApiParam(value="End time as ISO8601-string", required=true) 
 			@PathParam("to") String to,
 			@ApiParam(value="Options to furthur limit the fetch. It is a comma-separated list of options",
-					allowableValues="[title],[duration|viewers],[top|low],[1-9][0-9]*",
 					required=false) 
 			@PathParam("options") String options) {
 		DateTime fromDate, toDate;
@@ -223,19 +231,23 @@ public class StatsDataProvider {
 					"<ul><li>If the specified period is less than a day, then data is grouped hourly</li>" +
 					"<ul><li>If the specified period is less than a week, then data is grouped daily</li>" +
 					"<ul><li>If the specified period is less than a month, then data is grouped weekly</li>" +
-					"<ul><li>Otherwise data is grouped monthly</li></ul>",
+					"<ul><li>Otherwise data is grouped monthly</li></ul><br/>" +
+					"Allowable values for the 'options' parameter are : [title],[duration|viewers],[top|low],[1-9][0-9]*" +
+					"<ul><li>[title]: If the data-lookup should take the title into account. Specify this if searching data for TV programs.</li>" +
+					"<li>[duration|viewers]: The results should be returned based on the total watched/used or number of viewers. The duration will not apply for all events.</li>" +
+					"<li>[top|low]: Return the most or least used/viewed events</li>" +
+					"<li>[1-9][0-9]*: How many records should be returned</li></ul>",
 			responseClass = "com.nordija.statistic.mnm.rest.model.ListResult[com.nordija.statistic.mnm.rest.model.NestedList[java.lang.Object]]")
 	public ListResult<NestedList<Object>> getViewPageInBatch(
-			@ApiParam(value="Statistics event type", allowableValues="'adAdtion', 'DvrUsage', 'LiveUsage', 'movieRent', " + 
-					"'SelfCareSUBSCRIBE', 'shopLoaded', 'STARTOVERUsage', 'TIMESHIFTUsage', 'VodUsageMOVIE', 'VodUsageTRAILER'," + 
-					"'WebTVLogin', 'widgetShow'", required=true) 
+			@ApiParam(value="Statistics event type", allowableValues="adAdtion,DvrUsage,LiveUsage,movieRent," + 
+					"SelfCareSUBSCRIBE,shopLoaded,STARTOVERUsage,TIMESHIFTUsage,VodUsageMOVIE,VodUsageTRAILER," + 
+					"WebTVLogin,widgetShow", required=true) 
 			@PathParam("type") String type, 
 			@ApiParam(value="Start time as ISO8601-string", required=true) 
 			@PathParam("from") String from, 
 			@ApiParam(value="End time as ISO8601-string", required=true) 
 			@PathParam("to") String to,
 			@ApiParam(value="Options to furthur limit the fetch. It is a comma-separated list of options",
-					allowableValues="[title],[duration|viewers],[top|low],[1-9][0-9]*",
 					required=false) 
 			@PathParam("options") String options) {
 
