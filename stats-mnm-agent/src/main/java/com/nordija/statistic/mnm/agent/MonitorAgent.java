@@ -252,7 +252,8 @@ public class MonitorAgent {
         ClassPathXmlApplicationContext context =
             new ClassPathXmlApplicationContext(new String[] { 
             		"classpath*:META-INF/spring/applicationContext.xml",
-            		"classpath*:META-INF/spring/applicationContext-batch.xml"});
+            		"classpath*:META-INF/spring/applicationContext-batch.xml",
+            		"classpath*:META-INF/spring/applicationContext-jmx.xml"});
 
         return context;
     }	

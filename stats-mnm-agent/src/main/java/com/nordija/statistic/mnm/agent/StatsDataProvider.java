@@ -163,7 +163,7 @@ public class StatsDataProvider {
 			notes="This method is typically used to retrieve live data with some sort of paging functionality.<br/>" +
 					"Allowable values for the 'options' parameter are : [title],[duration|viewers],[top|low],[1-9][0-9]*" +
 					"<ul><li>[title]: If the data-lookup should take the title into account. Specify this if searching data for TV programs.</li>" +
-					"<li>[duration|viewers]: The results should be returned based on the total watched/used or number of viewers. The duration will not apply for all events.</li>" +
+					"<li>[duration|viewers]: The results should be returned based on the total watched/used or number of viewers. The duration will not apply to all events.</li>" +
 					"<li>[top|low]: Return the most or least used/viewed events</li>" +
 					"<li>[1-9][0-9]*: How many records should be returned</li></ul>",					
 			responseClass = "com.nordija.statistic.mnm.rest.model.NestedList[java.lang.Object]")
@@ -196,7 +196,7 @@ public class StatsDataProvider {
 					"Ex. '2005-03-25', '2005-03-25T8:00', '2005-03', '2005-W12' etc.<br/>" +
 					"Allowable values for the 'options' parameter are : [title],[duration|viewers],[top|low],[1-9][0-9]*" +
 					"<ul><li>[title]: If the data-lookup should take the title into account. Specify this if searching data for TV programs.</li>" +
-					"<li>[duration|viewers]: The results should be returned based on the total watched/used or number of viewers. The duration will not apply for all events.</li>" +
+					"<li>[duration|viewers]: The results should be returned based on the total watched/used or number of viewers. The duration will not apply to all events.</li>" +
 					"<li>[top|low]: Return the most or least used/viewed events</li>" +
 					"<li>[1-9][0-9]*: How many records should be returned</li></ul>",					
 			responseClass = "com.nordija.statistic.mnm.rest.model.NestedList[java.lang.Object]")
@@ -228,13 +228,13 @@ public class StatsDataProvider {
 	@Path("/viewbatch/{type}/{from}/{to}/{options}")
 	@ApiOperation(value = "Fetch stats data for the stats-event type and for the period defined by the two timestamp parameters.", 
 			notes="The data is returned as list of lists, devided and grouped into predefined periods." + 
-					"<ul><li>If the specified period is less than a day, then data is grouped hourly</li>" +
-					"<ul><li>If the specified period is less than a week, then data is grouped daily</li>" +
-					"<ul><li>If the specified period is less than a month, then data is grouped weekly</li>" +
-					"<ul><li>Otherwise data is grouped monthly</li></ul><br/>" +
+					"<ul><li>If the specified period is less than a day, then data is grouped on hourly basis</li>" +
+					"<ul><li>If the specified period is less than a week, then data is grouped on daily basis</li>" +
+					"<ul><li>If the specified period is less than a month, then data is grouped on weekly basis</li>" +
+					"<ul><li>Otherwise data is grouped on monthly basis</li></ul><br/>" +
 					"Allowable values for the 'options' parameter are : [title],[duration|viewers],[top|low],[1-9][0-9]*" +
 					"<ul><li>[title]: If the data-lookup should take the title into account. Specify this if searching data for TV programs.</li>" +
-					"<li>[duration|viewers]: The results should be returned based on the total watched/used or number of viewers. The duration will not apply for all events.</li>" +
+					"<li>[duration|viewers]: The results should be returned based on the total watched/used or number of viewers. The duration will not apply to all events.</li>" +
 					"<li>[top|low]: Return the most or least used/viewed events</li>" +
 					"<li>[1-9][0-9]*: How many records should be returned</li></ul>",
 			responseClass = "com.nordija.statistic.mnm.rest.model.ListResult[com.nordija.statistic.mnm.rest.model.NestedList[java.lang.Object]]")
