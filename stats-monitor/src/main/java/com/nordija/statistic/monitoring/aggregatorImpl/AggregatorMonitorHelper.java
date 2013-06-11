@@ -26,7 +26,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import com.nordija.statistic.admin.AggregatorJmxConnector;
+import com.nordija.statistic.monitoring.admin.AggregatorJmxConnector;
 
 @Component("aggregatorMonitorHelper")
 public class AggregatorMonitorHelper {

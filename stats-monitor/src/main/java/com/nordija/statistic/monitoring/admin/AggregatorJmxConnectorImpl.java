@@ -1,4 +1,4 @@
-package com.nordija.statistic.admin;
+package com.nordija.statistic.monitoring.admin;
 
 import java.io.IOException;
 import java.lang.management.MemoryMXBean;

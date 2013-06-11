@@ -49,29 +49,30 @@
     	<property name="jobRegistry" ref="jobRegistry" />
     	<property name="jobLauncher" ref="jobLauncher" />
 	</bean>
-      
-	<batch:job id="hourlyJob" restartable="true">
+    <bean id="incrementer" class="org.springframework.batch.core.launch.support.RunIdIncrementer"/>
+    
+	<batch:job id="hourlyJob" restartable="true" incrementer="incrementer">
     	<batch:step id="hstep">
         	<batch:tasklet transaction-manager="txManager">
             	<batch:chunk reader="statsViewHourlyReader" processor="statsViewHourlyProcessor" writer="statsViewHourlyWriter" 
                 	   commit-interval="100"/>
         	</batch:tasklet>
     	</batch:step>
-<!--     	<batch:listeners> -->
-<!--     		<batch:listener ref="statsViewJobListener"/> -->
-<!--     	</batch:listeners> -->
+    	<batch:listeners>
+    		<batch:listener ref="statsViewJobListener"/>
+    	</batch:listeners>
 	</batch:job>
 
-	<batch:job id="dailyJob" restartable="true">
+	<batch:job id="dailyJob" restartable="true" incrementer="incrementer">
     	<batch:step id="dstep">
         	<batch:tasklet transaction-manager="txManager">
             	<batch:chunk reader="statsViewDailyReader" processor="statsViewDailyProcessor" writer="statsViewDailyWriter" 
                 	   commit-interval="100"/>
         	</batch:tasklet>
     	</batch:step>
-<!--     	<batch:listeners> -->
-<!--     		<batch:listener ref="statsViewJobListener"/> -->
-<!--     	</batch:listeners> -->
+    	<batch:listeners>
+    		<batch:listener ref="statsViewJobListener"/>
+    	</batch:listeners>
 	</batch:job>
 	
 	<bean id="statsViewHourlyProcessor" class="com.nordija.statistic.mnm.stats.batch.StatsViewItemProcessor">
@@ -124,11 +125,11 @@
 		</property>
 	</bean>
 
-	<bean id="hourlyScheduledJobLauncher" class="com.nordija.statistic.mnm.stats.batch.ScheduledJobLauncher">
+	<bean id="hourlyScheduledJobLauncher" class="com.nordija.statistic.mnm.stats.batch.ScheduledJobLauncherImpl">
 		<property name="job" ref="hourlyJob"/>
 		<property name="scheduleTimeUnit" value="HOURS"/>
 	</bean>
-	<bean id="dailyScheduledJobLauncher" class="com.nordija.statistic.mnm.stats.batch.ScheduledJobLauncher">
+	<bean id="dailyScheduledJobLauncher" class="com.nordija.statistic.mnm.stats.batch.ScheduledJobLauncherImpl">
 		<property name="job" ref="dailyJob"/>
 		<property name="scheduleTimeUnit" value="DAYS"/>
 	</bean>
@@ -139,10 +140,10 @@
 	<task:scheduled-tasks scheduler="scheduler">
 		<task:scheduled ref="hourlyScheduledJobLauncher"
         	          	method="launch"
-            	      	fixed-rate="3600000" />  <!-- One hour from start of the previous job -->
+        	          	cron="5 0 */1 * * *" /> <!-- every hour -->
         <task:scheduled ref="dailyScheduledJobLauncher" 
         				method="launch"
-        				fixed-rate="86400000" /> <!-- 24 hours from start of the previous job -->
+        	          	cron="0 5 0 * * *" /> <!-- 5 minutes after midnight -->
 	</task:scheduled-tasks>
 </beans>
 

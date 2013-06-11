@@ -15,10 +15,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.nordija.statistic.admin.AggregatorAdmin;
 import com.nordija.statistic.mnm.rest.jaxb.DSRequest;
 import com.nordija.statistic.mnm.rest.jaxb.DSResponse;
 import com.nordija.statistic.mnm.rest.jaxb.OperationType;
+import com.nordija.statistic.monitoring.admin.AggregatorAdmin;
 
 @Service("aggAdminResource")
 @Path("/agg/admin")

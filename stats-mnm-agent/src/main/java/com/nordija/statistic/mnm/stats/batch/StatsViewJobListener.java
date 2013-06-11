@@ -2,7 +2,8 @@ package com.nordija.statistic.mnm.stats.batch;
 
 import javax.sql.DataSource;
 
-import org.springframework.batch.core.ExitStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.JobExecution;
 import org.springframework.batch.core.JobExecutionListener;
 import org.springframework.batch.core.JobInstance;
@@ -14,6 +15,8 @@ import org.springframework.stereotype.Component;
 
 @Component("statsViewJobListener")
 public class StatsViewJobListener implements JobExecutionListener {
+	private static final Logger logger = LoggerFactory.getLogger(StatsViewJobListener.class);
+	
 	private ExecutionContext executionContext;
 	@Autowired private DataSource dataSource;
 	
@@ -26,11 +29,15 @@ public class StatsViewJobListener implements JobExecutionListener {
 		long from = jobParams.getLong("from");
 		long to = jobParams.getLong("to");
 
-		ExitStatus exitStatus = jobExecution.getExitStatus();
-		if(exitStatus == ExitStatus.FAILED){
-			// clean up. This job is going to be restarted.
-			JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
-			jdbcTemplate.execute("delete from stats_view_hourly where fromTS >= "+from+" and toTS < "+to);
+		String jobName = jobInstance.getJobName();
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
+		
+		if(jobName.equals("hourlyJob") || jobName.equals("dailyJob")){
+			String table = jobName.equals("hourlyJob") ? "stats_view_hourly" : "stats_view_daily";
+			int deleted = jdbcTemplate.update("delete from "+table+" where fromTS >= "+from+" and toTS < "+to);
+			if(deleted >= 1){
+				logger.info("Deleted {} records from {}, because the previous job was not finished completely.", deleted, table);
+			}
 		}
 		
 		executionContext.putLong("from", from);

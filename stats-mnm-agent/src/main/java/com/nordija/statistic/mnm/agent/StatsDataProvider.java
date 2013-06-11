@@ -365,16 +365,15 @@ public class StatsDataProvider {
 	private final static DateTimeFormatter fmtMonth = ISODateTimeFormat.yearMonth();
 	private final static DateTimeFormatter fmtWeek = ISODateTimeFormat.weekyearWeek();
 	private String getFormattedTime(TimeUnit timeunit, long ts){
-		DateTime dt = new DateTime(ts);	
 		switch(timeunit){
 		case daily:
-			return fmtDay.print(dt);
+			return fmtDay.print(ts);
 		case weekly:
-			return fmtWeek.print(dt);
+			return fmtWeek.print(ts);
 		case monthly:
-			return fmtMonth.print(dt);
+			return fmtMonth.print(ts);
 		default:
-			return fmtHour.print(dt);
+			return fmtHour.print(ts);
 		}
 	}
 	

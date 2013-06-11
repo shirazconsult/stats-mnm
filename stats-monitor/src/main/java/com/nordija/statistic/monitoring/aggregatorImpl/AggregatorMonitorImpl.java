@@ -13,12 +13,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
 
-import com.nordija.statistic.admin.AggregatorJmxConnector;
+import com.nordija.statistic.monitoring.admin.AggregatorJmxConnector;
 import com.nordija.statistic.monitoring.aggregator.AggregatorMonitor;
 
-@Component("aggregatorMonitor")
 public class AggregatorMonitorImpl extends RouteBuilder implements AggregatorMonitor{
 	private final static Logger logger = LoggerFactory.getLogger(AggregatorMonitorImpl.class);
 	

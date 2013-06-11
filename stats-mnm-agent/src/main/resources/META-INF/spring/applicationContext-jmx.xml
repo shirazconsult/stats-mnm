@@ -16,9 +16,19 @@
 	<bean class="org.springframework.jmx.export.MBeanExporter">
 		<property name="beans">
 			<map> 
-				<entry key="spring:service=batch,bean=jobOperator">
+				<entry key="stats_monitor:service=batch,bean=jobOperator">
   					<bean class="org.springframework.aop.framework.ProxyFactoryBean">
     					<property name="target" ref="jobOperator"/>	          
+        			</bean>
+      			</entry>
+				<entry key="stats_monitor:service=batch,bean=hourlyScheduledJobLauncher">
+  					<bean class="org.springframework.aop.framework.ProxyFactoryBean">
+    					<property name="target" ref="hourlyScheduledJobLauncher"/>
+        			</bean>
+      			</entry>
+				<entry key="stats_monitor:service=batch,bean=dailyScheduledJobLauncher">
+  					<bean class="org.springframework.aop.framework.ProxyFactoryBean">
+    					<property name="target" ref="dailyScheduledJobLauncher"/>
         			</bean>
       			</entry>
     		</map>
@@ -27,8 +37,12 @@
 			<bean class="org.springframework.jmx.export.assembler.InterfaceBasedMBeanInfoAssembler">
       			<property name="interfaceMappings">
         			<map>
-          				<entry key="spring:service=batch,bean=jobOperator"
+          				<entry key="stats_monitor:service=batch,bean=jobOperator"
               					value="org.springframework.batch.core.launch.JobOperator"/>
+          				<entry key="stats_monitor:service=batch,bean=hourlyScheduledJobLauncher"
+              					value="com.nordija.statistic.mnm.stats.batch.ScheduledJobLauncher"/>
+          				<entry key="stats_monitor:service=batch,bean=dailyScheduledJobLauncher"
+              					value="com.nordija.statistic.mnm.stats.batch.ScheduledJobLauncher"/>
         			</map>
       			</property>
     		</bean>

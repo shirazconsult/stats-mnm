@@ -26,8 +26,14 @@
 		<property name="systemPropertiesModeName" value="SYSTEM_PROPERTIES_MODE_OVERRIDE" />
 	</bean>
  
- 	<import resource="datasources.xml" />
- 	
  	<bean id="jacksonMapper" class="org.codehaus.jackson.map.ObjectMapper"/>
- 
+
+ 	<import resource="datasources.xml" />
+ 	<import resource="classpath*:META-INF/spring/applicationContext-amq.xml" />
+ 	<import resource="classpath*:META-INF/spring/applicationContext-aggmon.xml" />
+ 	<import resource="applicationContext-camel.xml" />
+ 	
+<!--  	<import resource="classpath*:META-INF/spring/applicationContext-amq.xml" /> -->
+<!--  	<import resource="classpath*:META-INF/spring/applicationContext-aggmon.xml" /> 	 -->
+  
 </beans>

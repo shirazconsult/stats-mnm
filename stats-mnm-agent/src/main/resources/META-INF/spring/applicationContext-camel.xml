@@ -7,12 +7,15 @@
                 http://camel.apache.org/schema/spring http://camel.apache.org/schema/spring/camel-spring.xsd
         ">
 
-	<camelContext id="context" xmlns="http://camel.apache.org/schema/spring">
-		<contextScan />
-		<jmxAgent id="aggregatorMonitorAgent" usePlatformMBeanServer="true"
-			createConnector="true" mbeanObjectDomainName="monitor"
-			serviceUrlPath="monitor" registerAlways="true" registryPort="1199"/>
+ 	<camelContext id="mnmAgentContext" autoStartup="false" xmlns="http://camel.apache.org/schema/spring">
+		<jmxAgent id="mnmAgent" usePlatformMBeanServer="true" 
+			createConnector="true" mbeanObjectDomainName="statsMnM"
+			serviceUrlPath="statsMnM" registerAlways="true" registryPort="1199"/>
 		
+		<camel:routeBuilder ref="brokerMonitor"/>
+		<camel:routeBuilder ref="aggregatorMonitor"/>
 	</camelContext>
 
+	<bean id="aggregatorMonitor" class="com.nordija.statistic.monitoring.aggregatorImpl.AggregatorMonitorImpl" />
+ 	<bean id="brokerMonitor" class="com.nordija.activemq.monitor.BrokerMonitor" />
 </beans>
