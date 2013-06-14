@@ -14,7 +14,155 @@
 			http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util.xsd
 			http://www.springframework.org/schema/batch http://www.springframework.org/schema/batch/spring-batch.xsd
 			http://www.springframework.org/schema/task http://www.springframework.org/schema/task/spring-task.xsd">
+    
+    <!-- batch jobs -->
+	<!-- ===========-->
+	<batch:job id="hourlyJob" restartable="true" incrementer="incrementer">
+    	<batch:step id="hstep">
+        	<batch:tasklet transaction-manager="txManager">
+            	<batch:chunk reader="statsViewHourlyReader" processor="statsViewHourlyProcessor" writer="statsViewHourlyWriter" 
+                	   commit-interval="100"/>
+        	</batch:tasklet>
+    	</batch:step>
+    	<batch:listeners>
+    		<batch:listener ref="statsViewJobListener"/>
+    	</batch:listeners>
+	</batch:job>
 
+	<batch:job id="dailyJob" restartable="true" incrementer="incrementer">
+    	<batch:step id="dstep">
+        	<batch:tasklet transaction-manager="txManager">
+            	<batch:chunk reader="statsViewDailyReader" processor="statsViewDailyProcessor" writer="statsViewDailyWriter" 
+                	   commit-interval="100"/>
+        	</batch:tasklet>
+    	</batch:step>
+    	<batch:listeners>
+    		<batch:listener ref="statsViewJobListener"/>
+    	</batch:listeners>
+	</batch:job>
+	
+	<!-- cleanup jobs/tasks -->
+	<!-- ================== -->
+	<bean id="cleanupTask" class="com.nordija.statistic.mnm.stats.batch.CleanupTask"/>
+	<batch:job id="cleanupHourlyJob" restartable="true" incrementer="incrementer">
+    	<batch:step id="cthStep">
+       		<batch:tasklet ref="cleanupTask" transaction-manager="txManager" />
+    	</batch:step>
+	</batch:job>
+	<batch:job id="cleanupDailyJob" restartable="true" incrementer="incrementer">
+    	<batch:step id="cdtStep">
+       		<batch:tasklet ref="cleanupTask" transaction-manager="txManager"/>
+    	</batch:step>
+	</batch:job>
+	<batch:job id="cleanupViewJob" restartable="true" incrementer="incrementer">
+    	<batch:step id="cvtStep">
+       		<batch:tasklet ref="cleanupTask" transaction-manager="txManager"/>
+    	</batch:step>
+	</batch:job>
+	
+	<!-- processors -->
+	<!-- ========== -->
+	<bean id="statsViewHourlyProcessor" class="com.nordija.statistic.mnm.stats.batch.StatsViewItemProcessor">
+		<property name="name" value="Hourly processor"/>
+		<property name="accumulationUnit" value="HOURS"/>
+	</bean>
+
+	<bean id="statsViewDailyProcessor" class="com.nordija.statistic.mnm.stats.batch.StatsViewItemProcessor">
+		<property name="name" value="Daily processor"/>
+		<property name="accumulationUnit" value="DAYS"/>
+	</bean>
+	
+	<!-- readers -->
+	<!-- ======= -->
+	<bean id="statsViewHourlyReader" class="com.nordija.statistic.mnm.stats.batch.StatsViewItemReader">
+    	<property name="dataSource" ref="dataSource"/>
+    	<property name="sql" value="select * from stats_view"/> <!-- this is a dummy sql. will be overrided -->
+    	<property name="rowMapper" ref="statsViewRowListMapper"/>
+	</bean>
+
+	<bean id="statsViewDailyReader" class="com.nordija.statistic.mnm.stats.batch.StatsViewItemReader">
+    	<property name="dataSource" ref="dataSource"/>
+    	<property name="sql" value="select * from stats_view"/> <!-- this is a dummy sql. will be overrided -->
+    	<property name="rowMapper" ref="statsViewRowListMapper"/>
+	</bean>
+	
+	<!-- writers -->
+	<!-- ======= -->
+	<bean id="statsViewHourlyWriter"
+		class="com.nordija.statistic.mnm.stats.batch.StatsViewItemWriter">
+		<property name="batchItemWriter">
+			<bean class="org.springframework.batch.item.database.JdbcBatchItemWriter">
+				<property name="assertUpdates" value="true" />
+				<property name="itemPreparedStatementSetter" ref="statsViewPreparedStatementSetter"/>
+				<property name="sql"
+					value="insert into stats_view_hourly (type, name, title, viewers, duration, fromTS, toTS) 
+							values(?, ?, ?, ?, ?, ?, ?)" />
+				<property name="dataSource" ref="dataSource" />
+			</bean>
+		</property>
+	</bean>
+
+	<bean id="statsViewDailyWriter"
+		class="com.nordija.statistic.mnm.stats.batch.StatsViewItemWriter">
+		<property name="batchItemWriter">
+			<bean class="org.springframework.batch.item.database.JdbcBatchItemWriter">
+				<property name="assertUpdates" value="true" />
+				<property name="itemPreparedStatementSetter" ref="statsViewPreparedStatementSetter"/>
+				<property name="sql"
+					value="insert into stats_view_daily (type, name, title, viewers, duration, fromTS, toTS) 
+							values(?, ?, ?, ?, ?, ?, ?)" />
+				<property name="dataSource" ref="dataSource" />
+			</bean>
+		</property>
+	</bean>
+
+	<!-- schedulers & launchers -->
+	<!-- ====================== -->
+	<bean id="hourlyScheduledJobLauncher" class="com.nordija.statistic.mnm.stats.batch.ScheduledJobLauncherImpl">
+		<property name="job" ref="hourlyJob"/>
+		<property name="scheduleTimeUnit" value="HOURS"/>
+	</bean>
+	<bean id="dailyScheduledJobLauncher" class="com.nordija.statistic.mnm.stats.batch.ScheduledJobLauncherImpl">
+		<property name="job" ref="dailyJob"/>
+		<property name="scheduleTimeUnit" value="DAYS"/>
+	</bean>
+	<bean id="cleanupViewJobLauncher" class="com.nordija.statistic.mnm.stats.batch.CleanupJobLauncher">
+		<property name="job" ref="cleanupViewJob"/>
+		<property name="daysToLive" value="1" />
+		<property name="table" value="stats_view"/>
+	</bean>
+	<bean id="cleanupHourlyJobLauncher" class="com.nordija.statistic.mnm.stats.batch.CleanupJobLauncher">
+		<property name="job" ref="cleanupHourlyJob"/>
+		<property name="daysToLive" value="2" />
+		<property name="table" value="stats_view_hourly"/>
+	</bean>
+	<bean id="cleanupDailyJobLauncher" class="com.nordija.statistic.mnm.stats.batch.CleanupJobLauncher">
+		<property name="job" ref="cleanupDailyJob"/>
+		<property name="daysToLive" value="366" />
+		<property name="table" value="stats_view_hourly"/>
+	</bean>
+		
+	<task:scheduler id="scheduler" />
+	<task:scheduled-tasks scheduler="scheduler">
+		<task:scheduled ref="hourlyScheduledJobLauncher"
+        	          	method="launch"
+        	          	cron="5 0 */1 * * *" /> <!-- every hour -->
+        <task:scheduled ref="dailyScheduledJobLauncher" 
+        				method="launch"
+        	          	cron="0 5 0 * * *" /> <!-- 5 minutes after midnight -->
+     	<task:scheduled ref="cleanupViewJobLauncher" 
+     					method="launch" 
+     					cron="0 51 15 * * *" /> <!-- 45 minutes after midnight -->
+     	<task:scheduled ref="cleanupHourlyJobLauncher" 
+     					method="launch" 
+     					cron="0 53 15 * * *" /> <!-- 50 minutes after midnight -->
+     	<task:scheduled ref="cleanupDailyJobLauncher" 
+     					method="launch" 
+     					cron="0 54 15 * * *" /> <!-- 55 minutes after midnight -->
+	</task:scheduled-tasks>
+	
+	<!-- spring batch management beans -->
+	<!-- ============================= -->
 	<bean class="org.springframework.batch.core.scope.StepScope" />
 	
 	<batch:job-repository id="jobRepository"
@@ -50,100 +198,6 @@
     	<property name="jobLauncher" ref="jobLauncher" />
 	</bean>
     <bean id="incrementer" class="org.springframework.batch.core.launch.support.RunIdIncrementer"/>
-    
-	<batch:job id="hourlyJob" restartable="true" incrementer="incrementer">
-    	<batch:step id="hstep">
-        	<batch:tasklet transaction-manager="txManager">
-            	<batch:chunk reader="statsViewHourlyReader" processor="statsViewHourlyProcessor" writer="statsViewHourlyWriter" 
-                	   commit-interval="100"/>
-        	</batch:tasklet>
-    	</batch:step>
-    	<batch:listeners>
-    		<batch:listener ref="statsViewJobListener"/>
-    	</batch:listeners>
-	</batch:job>
-
-	<batch:job id="dailyJob" restartable="true" incrementer="incrementer">
-    	<batch:step id="dstep">
-        	<batch:tasklet transaction-manager="txManager">
-            	<batch:chunk reader="statsViewDailyReader" processor="statsViewDailyProcessor" writer="statsViewDailyWriter" 
-                	   commit-interval="100"/>
-        	</batch:tasklet>
-    	</batch:step>
-    	<batch:listeners>
-    		<batch:listener ref="statsViewJobListener"/>
-    	</batch:listeners>
-	</batch:job>
 	
-	<bean id="statsViewHourlyProcessor" class="com.nordija.statistic.mnm.stats.batch.StatsViewItemProcessor">
-		<property name="name" value="Hourly processor"/>
-		<property name="accumulationUnit" value="HOURS"/>
-	</bean>
-
-	<bean id="statsViewDailyProcessor" class="com.nordija.statistic.mnm.stats.batch.StatsViewItemProcessor">
-		<property name="name" value="Daily processor"/>
-		<property name="accumulationUnit" value="DAYS"/>
-	</bean>
-	
-	<bean id="statsViewHourlyReader" class="com.nordija.statistic.mnm.stats.batch.StatsViewItemReader">
-    	<property name="dataSource" ref="dataSource"/>
-    	<property name="sql" value="select * from stats_view"/> <!-- this is a dummy sql. will be overrided -->
-    	<property name="rowMapper" ref="statsViewRowListMapper"/>
-	</bean>
-
-	<bean id="statsViewDailyReader" class="com.nordija.statistic.mnm.stats.batch.StatsViewItemReader">
-    	<property name="dataSource" ref="dataSource"/>
-    	<property name="sql" value="select * from stats_view"/> <!-- this is a dummy sql. will be overrided -->
-    	<property name="rowMapper" ref="statsViewRowListMapper"/>
-	</bean>
-	
-	<bean id="statsViewHourlyWriter"
-		class="com.nordija.statistic.mnm.stats.batch.StatsViewItemWriter">
-		<property name="batchItemWriter">
-			<bean class="org.springframework.batch.item.database.JdbcBatchItemWriter">
-				<property name="assertUpdates" value="true" />
-				<property name="itemPreparedStatementSetter" ref="statsViewPreparedStatementSetter"/>
-				<property name="sql"
-					value="insert into stats_view_hourly (type, name, title, viewers, duration, fromTS, toTS) 
-							values(?, ?, ?, ?, ?, ?, ?)" />
-				<property name="dataSource" ref="dataSource" />
-			</bean>
-		</property>
-	</bean>
-
-	<bean id="statsViewDailyWriter"
-		class="com.nordija.statistic.mnm.stats.batch.StatsViewItemWriter">
-		<property name="batchItemWriter">
-			<bean class="org.springframework.batch.item.database.JdbcBatchItemWriter">
-				<property name="assertUpdates" value="true" />
-				<property name="itemPreparedStatementSetter" ref="statsViewPreparedStatementSetter"/>
-				<property name="sql"
-					value="insert into stats_view_daily (type, name, title, viewers, duration, fromTS, toTS) 
-							values(?, ?, ?, ?, ?, ?, ?)" />
-				<property name="dataSource" ref="dataSource" />
-			</bean>
-		</property>
-	</bean>
-
-	<bean id="hourlyScheduledJobLauncher" class="com.nordija.statistic.mnm.stats.batch.ScheduledJobLauncherImpl">
-		<property name="job" ref="hourlyJob"/>
-		<property name="scheduleTimeUnit" value="HOURS"/>
-	</bean>
-	<bean id="dailyScheduledJobLauncher" class="com.nordija.statistic.mnm.stats.batch.ScheduledJobLauncherImpl">
-		<property name="job" ref="dailyJob"/>
-		<property name="scheduleTimeUnit" value="DAYS"/>
-	</bean>
-
-	<task:scheduler id="scheduler"/>
-
-	<task:scheduler id="scheduler" />
-	<task:scheduled-tasks scheduler="scheduler">
-		<task:scheduled ref="hourlyScheduledJobLauncher"
-        	          	method="launch"
-        	          	cron="5 0 */1 * * *" /> <!-- every hour -->
-        <task:scheduled ref="dailyScheduledJobLauncher" 
-        				method="launch"
-        	          	cron="0 5 0 * * *" /> <!-- 5 minutes after midnight -->
-	</task:scheduled-tasks>
 </beans>
 

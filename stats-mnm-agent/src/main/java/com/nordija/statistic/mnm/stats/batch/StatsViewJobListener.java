@@ -17,12 +17,11 @@ import org.springframework.stereotype.Component;
 public class StatsViewJobListener implements JobExecutionListener {
 	private static final Logger logger = LoggerFactory.getLogger(StatsViewJobListener.class);
 	
-	private ExecutionContext executionContext;
 	@Autowired private DataSource dataSource;
 	
 	@Override
 	public void beforeJob(JobExecution jobExecution) {
-		executionContext = jobExecution.getExecutionContext();
+		ExecutionContext executionContext = jobExecution.getExecutionContext();
 		JobInstance jobInstance = jobExecution.getJobInstance();
 		JobParameters jobParams = jobInstance.getJobParameters();
 

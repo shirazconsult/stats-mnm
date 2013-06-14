@@ -31,6 +31,21 @@
     					<property name="target" ref="dailyScheduledJobLauncher"/>
         			</bean>
       			</entry>
+				<entry key="stats_monitor:service=batch,bean=cleanupViewJobLauncher">
+  					<bean class="org.springframework.aop.framework.ProxyFactoryBean">
+    					<property name="target" ref="cleanupViewJobLauncher"/>
+        			</bean>
+      			</entry>
+				<entry key="stats_monitor:service=batch,bean=cleanupHourlyJobLauncher">
+  					<bean class="org.springframework.aop.framework.ProxyFactoryBean">
+    					<property name="target" ref="cleanupHourlyJobLauncher"/>
+        			</bean>
+      			</entry>
+				<entry key="stats_monitor:service=batch,bean=cleanupDailyJobLauncher">
+  					<bean class="org.springframework.aop.framework.ProxyFactoryBean">
+    					<property name="target" ref="cleanupDailyJobLauncher"/>
+        			</bean>
+      			</entry>
     		</map>
   		</property>
   		<property name="assembler">
@@ -42,6 +57,12 @@
           				<entry key="stats_monitor:service=batch,bean=hourlyScheduledJobLauncher"
               					value="com.nordija.statistic.mnm.stats.batch.ScheduledJobLauncher"/>
           				<entry key="stats_monitor:service=batch,bean=dailyScheduledJobLauncher"
+              					value="com.nordija.statistic.mnm.stats.batch.ScheduledJobLauncher"/>              					
+          				<entry key="stats_monitor:service=batch,bean=cleanupViewJobLauncher"
+              					value="com.nordija.statistic.mnm.stats.batch.ScheduledJobLauncher"/>
+          				<entry key="stats_monitor:service=batch,bean=cleanupHourlyJobLauncher"
+              					value="com.nordija.statistic.mnm.stats.batch.ScheduledJobLauncher"/>
+          				<entry key="stats_monitor:service=batch,bean=cleanupDailyJobLauncher"
               					value="com.nordija.statistic.mnm.stats.batch.ScheduledJobLauncher"/>
         			</map>
       			</property>

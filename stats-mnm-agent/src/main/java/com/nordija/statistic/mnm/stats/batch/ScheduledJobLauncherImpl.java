@@ -33,12 +33,28 @@ public class ScheduledJobLauncherImpl implements ScheduledJobLauncher {
 	@Autowired private JobLauncher jobLauncher;
 	@Autowired private JobExplorer jobExplorer;
 	
+	@Override
 	public void launch(){
-		JobParameters jobParams = getNextJobParameters();
+		launch(getNextJobParameters());
+	}
+
+	@Override
+	public void launch(String fromDate){
+		DateTime dt = DateTime.parse(fromDate);
+		long from = dt.getMillis();
+
+		launch(new JobParametersBuilder().
+				addLong("from", from).
+				addLong("to", getNextToInMillis()).
+				addString("name", job.getName()).
+				toJobParameters());		
+	}
+
+	private void launch(JobParameters jobParams){
+		logger.info("Launching {} with parameters: {}", job.getName(), jobParams.toString());
+
 		long from = jobParams.getLong("from");
 		long to = jobParams.getLong("to");
-
-		logger.info("Launching {} with parameters: {}", job.getName(), jobParams.toString());
 		if(to - from < timespanBetweenLaunches){
 			logger.info("Skipping launch of {}, since at least one hour must be elapsed since the last launched time: {} - {}", 
 					new Object[]{job.getName(), new DateTime(from), new DateTime(to)});
@@ -48,7 +64,7 @@ public class ScheduledJobLauncherImpl implements ScheduledJobLauncher {
 			jobLauncher.run(job, jobParams);
 		} catch (Exception e) {
 			logger.error("Could not launch the batch job,", e);
-		}
+		}		
 	}
 	
 	private JobParameters getNextJobParameters(){
@@ -81,6 +97,7 @@ public class ScheduledJobLauncherImpl implements ScheduledJobLauncher {
 	
 	// The purpose of this method is just to expose job parameters via jmx
 	private final static DateTimeFormatter dtf = ISODateTimeFormat.dateHourMinuteSecond();
+	@Override
 	public Map<String, Object> getNextJobParams(){
 		JobParameters params = getNextJobParameters();
 		Map<String, Object> res = new HashMap<String, Object>();
