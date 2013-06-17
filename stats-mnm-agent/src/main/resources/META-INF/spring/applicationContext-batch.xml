@@ -139,7 +139,7 @@
 	<bean id="cleanupDailyJobLauncher" class="com.nordija.statistic.mnm.stats.batch.CleanupJobLauncher">
 		<property name="job" ref="cleanupDailyJob"/>
 		<property name="daysToLive" value="366" />
-		<property name="table" value="stats_view_hourly"/>
+		<property name="table" value="stats_view_daily"/>
 	</bean>
 		
 	<task:scheduler id="scheduler" />
@@ -152,13 +152,13 @@
         	          	cron="0 5 0 * * *" /> <!-- 5 minutes after midnight -->
      	<task:scheduled ref="cleanupViewJobLauncher" 
      					method="launch" 
-     					cron="0 51 15 * * *" /> <!-- 45 minutes after midnight -->
+     					cron="0 45 0 * * *" /> <!-- 45 minutes after midnight -->
      	<task:scheduled ref="cleanupHourlyJobLauncher" 
      					method="launch" 
-     					cron="0 53 15 * * *" /> <!-- 50 minutes after midnight -->
+     					cron="0 50 0 * * *" /> <!-- 50 minutes after midnight -->
      	<task:scheduled ref="cleanupDailyJobLauncher" 
      					method="launch" 
-     					cron="0 54 15 * * *" /> <!-- 55 minutes after midnight -->
+     					cron="0 55 0 * * *" /> <!-- 55 minutes after midnight -->
 	</task:scheduled-tasks>
 	
 	<!-- spring batch management beans -->

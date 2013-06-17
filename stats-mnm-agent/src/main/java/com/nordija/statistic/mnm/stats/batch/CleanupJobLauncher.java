@@ -6,6 +6,7 @@ import java.util.Map;
 import javax.annotation.PostConstruct;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang.math.RandomUtils;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.ISODateTimeFormat;
@@ -16,6 +17,7 @@ import org.springframework.batch.core.JobParameters;
 import org.springframework.batch.core.JobParametersBuilder;
 import org.springframework.batch.core.explore.JobExplorer;
 import org.springframework.batch.core.launch.JobLauncher;
+import org.springframework.batch.core.repository.JobInstanceAlreadyCompleteException;
 import org.springframework.beans.factory.annotation.Autowired;
 
 public class CleanupJobLauncher implements ScheduledJobLauncher {
@@ -31,25 +33,37 @@ public class CleanupJobLauncher implements ScheduledJobLauncher {
 
 	@Override
 	public void launch() {
-		launch(getNextJobParameters());
+		try{
+			launch(getNextJobParameters());
+		} catch (Exception e) {
+			logger.error("Failed to execute {}. Reason: {}", job.getName(), e.getMessage());			
+		}
 	}
 
 	@Override
 	public void launch(String dateStr) {
 		DateTime dt = DateTime.parse(dateStr);
 
-		launch(new JobParametersBuilder().
+		JobParameters jobParameters = new JobParametersBuilder().
 			addDate(CleanupTask.DELETE_BEFORE_DATE_PARAM, dt.toDate()).
 			addString(CleanupTask.TABLE_PARAM, table).
-			toJobParameters());
-	}
-
-	private void launch(JobParameters jobParams){
-		try {
-			jobLauncher.run(job, jobParams);
+			toJobParameters();
+		try{
+			launch(new JobParametersBuilder(jobParameters).addLong("run.id", RandomUtils.nextLong()).toJobParameters());
+		}catch(JobInstanceAlreadyCompleteException jiac){
+			logger.warn("Non-unique 'run.id' parameter ({}). Retrying with new 'run.id'");
+			try {
+				launch(new JobParametersBuilder(jobParameters).addLong("run.id", RandomUtils.nextLong()).toJobParameters());
+			} catch (Exception e) {
+				logger.error("Could not launch the batch job,", e);
+			}
 		} catch (Exception e) {
 			logger.error("Failed to execute {}. Reason: {}", job.getName(), e.getMessage());			
 		}
+	}
+
+	private void launch(JobParameters jobParams) throws Exception{
+			jobLauncher.run(job, jobParams);
 	}
 	
 	private JobParameters getNextJobParameters(){

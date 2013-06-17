@@ -55,7 +55,6 @@ public class StreamingStatsDataProcessor implements StatsDataProcessor {
 	private JdbcTemplate jdbcViewPersister;
 	private JdbcTemplate jdbcStatsLoader;
 	private long lastPersistedTS;
-	private int liveUsageWithNoTitleCount;
 
 	private void loadCache() throws Exception{
 		// Guard against too many selects in time of aggregator-inactivity periods
@@ -127,9 +126,6 @@ public class StreamingStatsDataProcessor implements StatsDataProcessor {
 				// Persist views 
 				if(count % 5000 == 0 || System.currentTimeMillis() - lastPersistedTS >= timeslotMillis){
 					saveViewData();
-					if(liveUsageWithNoTitleCount > 0){
-						logger.info("Skipping total of {} LiveUsage events, because of lack of title. ", liveUsageWithNoTitleCount);
-					}
 
 					lastPersistedTS = System.currentTimeMillis();
 				}
@@ -221,12 +217,8 @@ public class StreamingStatsDataProcessor implements StatsDataProcessor {
 				logger.warn("Unable to unmarshal the extra part of record.");
 			}
 		}
-		String title = extra != null ? (String)extra.get("title") : "No title";
-		title = title != null && title.length() > 64 ? title.substring(0, 64) : (title == null ? "No title" : title);
-		if(type.equals("LiveUsage") && title.equals("No title")){
-			liveUsageWithNoTitleCount++;
-			return;
-		}
+		String title = extra != null ? (String)extra.get("title") : NO_TITLE;
+		title = title != null && title.length() > 64 ? title.substring(0, 64) : (title == null ? NO_TITLE : title);
 		long duration = row.get(durationIdx) == null ? 0L : (Long)row.get(durationIdx);
 		
 		StatsViewKey viewKey = new StatsViewKey((String)row.get(typeIdx), (String)row.get(nameIdx), title);

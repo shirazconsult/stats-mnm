@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang.math.RandomUtils;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeConstants;
 import org.joda.time.chrono.GregorianChronology;
@@ -21,6 +22,7 @@ import org.springframework.batch.core.JobParameters;
 import org.springframework.batch.core.JobParametersBuilder;
 import org.springframework.batch.core.explore.JobExplorer;
 import org.springframework.batch.core.launch.JobLauncher;
+import org.springframework.batch.core.repository.JobInstanceAlreadyCompleteException;
 import org.springframework.beans.factory.annotation.Autowired;
 
 public class ScheduledJobLauncherImpl implements ScheduledJobLauncher {
@@ -35,7 +37,11 @@ public class ScheduledJobLauncherImpl implements ScheduledJobLauncher {
 	
 	@Override
 	public void launch(){
-		launch(getNextJobParameters());
+		try{
+			launch(getNextJobParameters(), false);
+		}catch(Exception e){
+			logger.error("Could not launch the batch job,", e);
+		}
 	}
 
 	@Override
@@ -43,28 +49,37 @@ public class ScheduledJobLauncherImpl implements ScheduledJobLauncher {
 		DateTime dt = DateTime.parse(fromDate);
 		long from = dt.getMillis();
 
-		launch(new JobParametersBuilder().
-				addLong("from", from).
-				addLong("to", getNextToInMillis()).
-				addString("name", job.getName()).
-				toJobParameters());		
+		JobParameters jobParameters = new JobParametersBuilder().
+			addLong("from", from).
+			addLong("to", getNextToInMillis()).
+			addString("name", job.getName()).
+			toJobParameters();
+		try{
+			launch(new JobParametersBuilder(jobParameters).addLong("run.id", RandomUtils.nextLong()).toJobParameters(), true);
+		}catch(JobInstanceAlreadyCompleteException jiac){
+			logger.warn("Non-unique 'run.id' parameter ({}). Retrying with new 'run.id'");
+			try {
+				launch(new JobParametersBuilder(jobParameters).addLong("run.id", RandomUtils.nextLong()).toJobParameters(), true);
+			} catch (Exception e) {
+				logger.error("Could not launch the batch job,", e);
+			}
+		}catch(Exception e){
+			logger.error("Could not launch the batch job,", e);
+		}
 	}
 
-	private void launch(JobParameters jobParams){
+	private void launch(JobParameters jobParams, boolean force) throws Exception {
 		logger.info("Launching {} with parameters: {}", job.getName(), jobParams.toString());
 
 		long from = jobParams.getLong("from");
 		long to = jobParams.getLong("to");
-		if(to - from < timespanBetweenLaunches){
+		if(!force && to - from < timespanBetweenLaunches){
 			logger.info("Skipping launch of {}, since at least one hour must be elapsed since the last launched time: {} - {}", 
 					new Object[]{job.getName(), new DateTime(from), new DateTime(to)});
 			return;
 		}
-    	try {
-			jobLauncher.run(job, jobParams);
-		} catch (Exception e) {
-			logger.error("Could not launch the batch job,", e);
-		}		
+
+		jobLauncher.run(job, jobParams);
 	}
 	
 	private JobParameters getNextJobParameters(){

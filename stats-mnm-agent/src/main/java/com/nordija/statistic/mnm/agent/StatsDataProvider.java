@@ -41,6 +41,9 @@ import com.wordnik.swagger.annotations.ApiParam;
 public class StatsDataProvider {
 	private static final Logger logger = LoggerFactory.getLogger(StatsDataProvider.class);
 	
+	// Skip programs with 'No title', when requesting LiveUsage data with title options 
+	private static final boolean skipLiveUsageWithNoTitle = true;
+	
 	@Autowired @Qualifier("dataSource") private DataSource dataSource;
 	
 	private JdbcTemplate jdbcTemplate;
@@ -338,6 +341,9 @@ public class StatsDataProvider {
 				append(", sum(`viewers`) as viewers, sum(`duration`) as duration, toTS from ").
 				append(getTable(from, to)).
 				append(" where type = ? and toTS > ? and toTS <= ?  ").
+				append(type.equals("LiveUsage") && skipLiveUsageWithNoTitle && 
+						options.title != null && options.title.equals("title") ? 
+						" and title != '"+StatsDataProcessor.NO_TITLE+"'" : "").
 				append(options.title != null && options.title.equals("title") ? 
 						" group by type, name, title order by " : " group by type, name order by ").
 				append(options.orderBy).append(" ").
@@ -379,10 +385,12 @@ public class StatsDataProvider {
 	
 	private NestedList<Object> fetch(String type, long from, long to) {
 		NestedList<Object> res = new NestedList<Object>(); 
+		StringBuilder sb = new StringBuilder("select * from ").
+				append(getTable(from, to)).
+				append(" where type = ? and toTS > ? and toTS <= ? order by fromTS, toTS");
+
 		List<Map<String, Object>> resultList = getJdbcTemplate().queryForList(
-				"select * from " +
-				getTable(from, to) + 
-				" where type = ? and toTS > ? and toTS <= ? order by fromTS, toTS", 
+				sb.toString(), 
 				type, from, to);
 		for (Map<String, Object> row : resultList) {
 			ListResult<Object> rec = new ListResult<Object>();
@@ -396,10 +404,12 @@ public class StatsDataProvider {
 
 	private NestedList<Object> fetch(long from, long to){
 		NestedList<Object> res = new NestedList<Object>(); 
+		StringBuilder sb = new StringBuilder("select * from ").
+				append(getTable(from, to)).
+				append(" where toTS > ? and toTS <= ? order by fromTS, toTS");
+		
 		List<Map<String, Object>> resultList = getJdbcTemplate().queryForList(
-				"select * from " +
-				getTable(from, to) +
-				" where toTS > ? and toTS <= ? order by fromTS, toTS", 
+				sb.toString(),
 				from, to);
 		for (Map<String, Object> row : resultList) {
 			ListResult<Object> rec = new ListResult<Object>();

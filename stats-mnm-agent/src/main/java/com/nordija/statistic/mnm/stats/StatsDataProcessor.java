@@ -13,6 +13,8 @@ public interface StatsDataProcessor extends Lifecycle {
 		"WebTVLogin", "widgetShow" 
 	};
 	
+	public static String NO_TITLE = "No title";
+	
 	static final int viewTypeIdx = 0;
 	static final int viewNameIdx = 1;
 	static final int viewTitleIdx = 2;
