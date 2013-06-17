@@ -57,7 +57,7 @@ public class StreamingStatsDataProcessor implements StatsDataProcessor {
 	private long lastPersistedTS;
 
 	private void loadCache() throws Exception{
-		// Guard against too many selects in time of aggregator-inactivity periods
+		// Guard against too many selects when aggregator is inactive
 		long lastRestart = 0;
 		long delayBeforeCursorRestart = 2000;
 		long maxDelay = 10000;
@@ -307,11 +307,14 @@ public class StreamingStatsDataProcessor implements StatsDataProcessor {
 			}
 		});
 		
+		closing.set(false);
 		dataStreamerThread.start();
+		logger.info("Started");
 	}
 
 	@Override
 	public void stop() {
+		logger.info("Stopping ...");
 		closing.set(true);
 		try {
 			if(isRunning()){
@@ -320,11 +323,12 @@ public class StreamingStatsDataProcessor implements StatsDataProcessor {
 		} catch (InterruptedException e) {
 			// ignore.
 		}
+		logger.info("Stopped");
 	}
 
 	@Override
 	public boolean isRunning() {
-		return dataStreamerThread != null && !dataStreamerThread.isAlive();
+		return dataStreamerThread != null && dataStreamerThread.isAlive();
 	}
 
 	class StreamingResultSetJdbcTemplate extends JdbcTemplate {

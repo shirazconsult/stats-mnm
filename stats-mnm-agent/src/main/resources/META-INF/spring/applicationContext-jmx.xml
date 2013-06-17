@@ -46,6 +46,11 @@
     					<property name="target" ref="cleanupDailyJobLauncher"/>
         			</bean>
       			</entry>
+				<entry key="stats_monitor:service=batch,bean=streamingStatsDataProcessor">
+  					<bean class="org.springframework.aop.framework.ProxyFactoryBean">
+    					<property name="target" ref="streamingStatsDataProcessor"/>
+        			</bean>
+      			</entry>
     		</map>
   		</property>
   		<property name="assembler">
@@ -64,6 +69,8 @@
               					value="com.nordija.statistic.mnm.stats.batch.ScheduledJobLauncher"/>
           				<entry key="stats_monitor:service=batch,bean=cleanupDailyJobLauncher"
               					value="com.nordija.statistic.mnm.stats.batch.ScheduledJobLauncher"/>
+          				<entry key="stats_monitor:service=batch,bean=streamingStatsDataProcessor"
+              					value="com.nordija.statistic.mnm.stats.StatsDataProcessor"/>
         			</map>
       			</property>
     		</bean>
